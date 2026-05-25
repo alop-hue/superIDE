@@ -174,12 +174,99 @@ IDE.togglePanel=function(){IDE.panelVisible=!IDE.panelVisible;document.getElemen
 IDE.showWelcome=function(){document.getElementById("welcomeScreen").style.display="flex";document.getElementById("monacoContainer").style.display="none";};
 
 var COMMANDS=[{icon:"fa-file-circle-plus",label:"New File",kbd:"Ctrl+N",section:"File",action:function(){IDE.newFile();}},{icon:"fa-floppy-disk",label:"Save",kbd:"Ctrl+S",section:"File",action:function(){IDE.saveFile();}},{icon:"fa-download",label:"Export ZIP",section:"File",action:function(){IDE.exportZip();}},{icon:"fa-folder-open",label:"Import ZIP",section:"File",action:function(){IDE.importZip();}},{icon:"fa-circle-half-stroke",label:"Toggle Theme",section:"View",action:function(){IDE.toggleTheme();}},{icon:"fa-map",label:"Toggle Minimap",section:"View",action:function(){IDE.toggleMinimap();}},{icon:"fa-text-width",label:"Toggle Word Wrap",kbd:"Alt+Z",section:"View",action:function(){IDE.toggleWordWrap();}},{icon:"fa-terminal",label:"Toggle Terminal Panel",section:"View",action:function(){IDE.togglePanel();}},{icon:"fa-play",label:"Start Debugging",kbd:"F5",section:"Debug",action:function(){startDebugging();}},{icon:"fa-stop",label:"Stop Debugging",kbd:"Shift+F5",section:"Debug",action:function(){stopDebugging();}},{icon:"fa-bug",label:"Add Breakpoint",kbd:"F9",section:"Debug",action:function(){addBreakpoint();}},{icon:"fa-gear",label:"Open Settings",kbd:"Ctrl+,",section:"Settings",action:function(){document.getElementById('settingsModal').classList.add('open');}},{icon:"fa-eraser",label:"Clear Chat History",section:"AI",action:function(){document.getElementById('chatMessages').innerHTML='';}},{icon:"fa-eye",label:"AI: Review Current File",section:"AI",action:function(){if(!IDE.activeFile)return notify("No file open");sendChat("Review this file:\n```\n"+IDE.editor.getValue()+"\n```");}},{icon:"fa-lightbulb",label:"AI: Explain Selected Code",section:"AI",action:function(){var sel=IDE.editor?IDE.editor.getModel().getValueInRange(IDE.editor.getSelection()):"";if(!sel.trim())return notify("Select code first");sendChat("Explain:\n```\n"+sel+"\n```");}},{icon:"fa-code-branch",label:"Source Control: Commit All",section:"SCM",action:function(){commitAll();}},{icon:"fa-undo",label:"Source Control: Revert All",section:"SCM",action:function(){revertAll();}}];
-
+function init(){
+  applyTheme(IDE.theme);
+  applySidebarPosition();
+  
+  function positionDropdowns(){
+    document.querySelectorAll('.menu-item').forEach(function(item){
+      var dropdown=item.querySelector('.menu-dropdown');
+      if(dropdown){
+        var rect=item.getBoundingClientRect();
+        dropdown.style.left=rect.left+'px';
+        dropdown.style.top=rect.bottom+'px';
+      }
+    });
+  }
+  
+  window.addEventListener('resize',positionDropdowns);
+  
+  document.getElementById('menuBar').addEventListener('click',function(e){
+    var dropdownItem=e.target.closest('.menu-dropdown-item');
+    if(dropdownItem){
+      e.stopPropagation();
+      var action=dropdownItem.getAttribute('data-action');
+      var themeName=dropdownItem.getAttribute('data-theme');
+      if(action){
+        if(typeof IDE[action]==='function')IDE[action]();
+        else if(action==='save')saveCurrentFile();
+        else if(action==='togglePanel')IDE.togglePanel();
+        else if(action==='startDebugging')startDebugging();
+      }
+      if(themeName){
+        applyTheme(themeName);
+        document.getElementById('themeSelect').value=themeName;
+      }
+      document.querySelectorAll('.menu-item.open').forEach(function(m){
+        m.classList.remove('open');
+      });
+      return;
+    }
+    var menuItem=e.target.closest('.menu-item');
+    if(menuItem&&menuItem.hasAttribute('data-menu')){
+      e.stopPropagation();
+      document.querySelectorAll('.menu-item.open').forEach(function(m){
+        if(m!==menuItem)m.classList.remove('open');
+      });
+      menuItem.classList.toggle('open');
+      if(menuItem.classList.contains('open'))positionDropdowns();
+    }
+  });
+  
+  document.addEventListener('click',function(e){
+    if(!e.target.closest('.menu-bar')){
+      document.querySelectorAll('.menu-item.open').forEach(function(m){
+        m.classList.remove('open');
+      });
+    }
+  });
+  
+  IDE.fs.ready.then(function(){
+    return IDE.fs.list();
+  }).then(function(files){
+    if(!files.length){
+      return Promise.all([
+        IDE.fs.save("index.html","<!DOCTYPE html>\n<html><head><meta charset=\x27UTF-8\x27><title>Hello</title></head><body><h1>SUPER IDE</h1></body></html>"),
+        IDE.fs.save("style.css","body{font-family:sans-serif;background:#0d1117;color:#e6edf3;padding:2rem;}"),
+        IDE.fs.save("app.js","console.log(\x27AI ready\x27);")
+      ]);
+    }
+  }).then(function(){
+    return initMonaco();
+  }).then(function(){
+    renderFileTree();
+    initTerminal();
+    loadExtensions();
+    IDE.extensions.forEach(function(ext,id){
+      if(ext.enabled)activateExtension(id);
+    });
+    // Fixed: Added missing 5th parameter (invert=false) to first initResize call
+    initResize(document.getElementById("sidebarResizeH"),document.getElementById("mainSidebar"),IDE.sidebarPosition==='right','--sidebar-w',false);
+    initResize(document.getElementById("chatResizeH"),document.getElementById("chatPanel"),false,'--chat-w',true);
+    bindUI();
+    setStatus("SUPER IDE ready");
+    logOutput("SUPER IDE initialized","ok");
+    fetchOpenRouterModels();
+    renderSCM();
+    renderBreakpoints();
+    renderWatchExpressions();
+  }).catch(function(err){
+    console.error("Init error:",err);
+    notify("Failed to initialize: "+err.message,"err");
+  });
+}
 function openCmdPalette(){document.getElementById("cmdModal").classList.add("open");document.getElementById("cmdInput").value="";filterCmds("");document.getElementById("cmdInput").focus();}
 function filterCmds(query){var q=query.toLowerCase();var filtered=q?COMMANDS.filter(function(c){return c.label.toLowerCase().includes(q);}):COMMANDS;var html="";var lastSection="";filtered.forEach(function(c){if(c.section!==lastSection){html+='<div class="cmd-section">'+c.section+"</div>";lastSection=c.section;}html+='<div class="cmd-item" data-idx="'+COMMANDS.indexOf(c)+'">';html+='<i class="fas '+c.icon+' cmd-icon2"></i>';html+='<span>'+c.label+"</span>";if(c.kbd)html+='<span class="cmd-kbd">'+c.kbd+"</span>";html+="</div>";});document.getElementById("cmdList").innerHTML=html||'<div style="padding:12px 16px;color:var(--text3)">No commands found</div>';document.querySelectorAll("#cmdList .cmd-item").forEach(function(el){el.onclick=function(){var idx=parseInt(el.getAttribute("data-idx"));document.getElementById("cmdModal").classList.remove("open");COMMANDS[idx].action();};});}
-
-
-function init(){applyTheme(IDE.theme);applySidebarPosition();function positionDropdowns(){document.querySelectorAll('.menu-item').forEach(function(item){var dropdown=item.querySelector('.menu-dropdown');if(dropdown){var rect=item.getBoundingClientRect();dropdown.style.left=rect.left+'px';dropdown.style.top=rect.bottom+'px';}});}window.addEventListener('resize',positionDropdowns);document.getElementById('menuBar').addEventListener('click',function(e){var dropdownItem=e.target.closest('.menu-dropdown-item');if(dropdownItem){e.stopPropagation();var action=dropdownItem.getAttribute('data-action');var themeName=dropdownItem.getAttribute('data-theme');if(action){if(typeof IDE[action]==='function')IDE[action]();else if(action==='save')saveCurrentFile();else if(action==='togglePanel')IDE.togglePanel();else if(action==='startDebugging')startDebugging();}if(themeName){applyTheme(themeName);document.getElementById('themeSelect').value=themeName;}document.querySelectorAll('.menu-item.open').forEach(function(m){m.classList.remove('open');});return;}var menuItem=e.target.closest('.menu-item');if(menuItem&&menuItem.hasAttribute('data-menu')){e.stopPropagation();document.querySelectorAll('.menu-item.open').forEach(function(m){if(m!==menuItem)m.classList.remove('open');});menuItem.classList.toggle('open');if(menuItem.classList.contains('open'))positionDropdowns();}});document.addEventListener('click',function(e){if(!e.target.closest('.menu-bar')){document.querySelectorAll('.menu-item.open').forEach(function(m){m.classList.remove('open');}});});IDE.fs.ready.then(function(){return IDE.fs.list();}).then(function(files){if(!files.length){return Promise.all([IDE.fs.save("index.html","<!DOCTYPE html>\n<html><head><meta charset='UTF-8'><title>Hello</title></head><body><h1>SUPER IDE</h1></body></html>"),IDE.fs.save("style.css","body{font-family:sans-serif;background:#0d1117;color:#e6edf3;padding:2rem;}"),IDE.fs.save("app.js","console.log('AI ready');")]);}}).then(function(){return initMonaco();}).then(function(){renderFileTree();initTerminal();loadExtensions();IDE.extensions.forEach(function(ext,id){if(ext.enabled)activateExtension(id);});initResize(document.getElementById("sidebarResizeH"),document.getElementById("mainSidebar"),IDE.sidebarPosition==='right','--sidebar-w',false);initResize(document.getElementById("chatResizeH"),document.getElementById("chatPanel"),false,'--chat-w',true);bindUI();setStatus("SUPER IDE ready");logOutput("SUPER IDE initialized","ok");fetchOpenRouterModels();renderSCM();renderBreakpoints();renderWatchExpressions();}).catch(function(err){console.error("Init error:",err);notify("Failed to initialize: "+err.message,"err");});}
 function initResize(handle,panel,isRight,cssVar,invert){var startX,startW;handle.addEventListener("mousedown",function(e){e.preventDefault();startX=e.clientX;startW=panel.offsetWidth;handle.classList.add("dragging");document.body.style.cursor="ew-resize";function onMove(e){var dx=e.clientX-startX;var newW;if(invert){if(isRight){newW=Math.max(180,Math.min(520,startW+dx));}else{newW=Math.max(180,Math.min(520,startW-dx));}}else{if(isRight){newW=Math.max(180,Math.min(520,startW-dx));}else{newW=Math.max(180,Math.min(520,startW+dx));}}panel.style.width=newW+"px";document.documentElement.style.setProperty(cssVar,newW+"px");if(IDE.editor)IDE.editor.layout();if(IDE.fitAddon&&IDE.panelVisible)IDE.fitAddon.fit();}function onUp(){document.body.style.cursor="";handle.classList.remove("dragging");window.removeEventListener("mousemove",onMove);window.removeEventListener("mouseup",onUp);}window.addEventListener("mousemove",onMove);window.addEventListener("mouseup",onUp);});}
 async function fetchOpenRouterModels(){var key=IDE.apiKeys.openrouter||IDE.apiKey;if(!key)return;try{var res=await fetch("https://openrouter.ai/api/v1/models",{headers:{Authorization:"Bearer "+key}});if(!res.ok)return;var data=await res.json();var select=document.getElementById("modelSelect");select.innerHTML="";data.data.forEach(function(m){var opt=document.createElement("option");opt.value=m.id;opt.textContent=m.name+" ("+m.id+")";select.appendChild(opt);});select.value=IDE.model;}catch(e){}}
 function switchSidebar(view){['explorer','search','scm','debug','extensions'].forEach(function(v){document.getElementById(v+'Section').style.display='none';});document.getElementById(view+'Section').style.display='flex';document.querySelectorAll('.act-btn[data-view]').forEach(function(b){b.classList.remove('active');});var btn=document.querySelector('.act-btn[data-view="'+view+'"]');if(btn)btn.classList.add('active');if(view==='extensions')renderExtensionsUI();if(view==='scm')renderSCM();if(view==='debug'){renderDebugVariables();renderCallStack();renderBreakpoints();renderWatchExpressions();}}
