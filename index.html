@@ -1,0 +1,2219 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>SUPER IDE — AI Powered</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-deep:#0d1117;
+  --bg-panel:#161b22;
+  --bg-hover:#21262d;
+  --bg-active:#1f2937;
+  --border:#30363d;
+  --accent:#f9b83a;
+  --accent2:#a16ec9;
+  --text:#e6edf3;
+  --text2:#8b949e;
+  --text3:#6e7681;
+  --green:#3fb950;
+  --red:#f85149;
+  --blue:#79c0ff;
+  --glow:0 0 20px rgba(249,184,58,0.15);
+  --font-ui:'DM Sans',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono','Fira Code',monospace;
+  --sidebar-w:260px;
+  --chat-w:340px;
+  --activity-w:48px;
+  --panel-h:200px;
+  --transition:0.15s ease;
+  --menu-h:30px;
+}
+body.light{
+  --bg-deep:#ffffff;
+  --bg-panel:#f6f8fa;
+  --bg-hover:#eaeef2;
+  --bg-active:#dbeafe;
+  --border:#d0d7de;
+  --text:#1f2328;
+  --text2:#57606a;
+  --text3:#8c959f;
+}
+html,body{height:100%;overflow:hidden;font-family:var(--font-ui);background:var(--bg-deep);color:var(--text)}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+
+#app{display:flex;flex-direction:column;height:100vh;width:100vw;overflow:hidden}
+
+/* ===== MENU BAR ===== */
+.menu-bar{
+  height:var(--menu-h);flex-shrink:0;
+  background:var(--bg-panel);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 8px;
+  font-size:13px;color:var(--text2);z-index:50;
+}
+.menu-item{
+  padding:4px 12px;cursor:pointer;border-radius:4px;
+  transition:var(--transition);position:relative;user-select:none;
+}
+.menu-item:hover{background:var(--bg-hover);color:var(--text)}
+.menu-item.open{background:var(--bg-hover);color:var(--text)}
+.menu-dropdown{
+  display:none;position:fixed;top:var(--menu-h);left:auto;
+  background:var(--bg-panel);border:1px solid var(--border);
+  border-radius:6px;padding:4px 0;min-width:200px;
+  z-index:10000;box-shadow:0 10px 30px rgba(0,0,0,0.6);
+}
+.menu-item.open .menu-dropdown{display:block}
+.menu-dropdown-item{
+  padding:8px 16px;cursor:pointer;font-size:13px;
+  display:flex;align-items:center;gap:8px;color:var(--text2);
+}
+.menu-dropdown-item:hover{background:var(--bg-hover);color:var(--text)}
+.menu-separator{height:1px;background:var(--border);margin:4px 0}
+
+/* ===== ACTIVITY BAR ===== */
+.activity-bar{
+  width:var(--activity-w);flex-shrink:0;
+  background:var(--bg-panel);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;
+  padding:8px 0;gap:2px;z-index:10;
+}
+.act-btn{
+  width:36px;height:36px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:8px;cursor:pointer;
+  color:var(--text2);font-size:18px;
+  transition:var(--transition);position:relative;
+  border:none;background:transparent;
+}
+.act-btn:hover{color:var(--text);background:var(--bg-hover)}
+.act-btn.active{color:var(--accent);background:rgba(249,184,58,0.1)}
+.act-spacer{flex:1}
+
+/* ===== SIDEBAR ===== */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--bg-panel);
+  display:flex;flex-direction:column;position:relative;
+  transition:width var(--transition);
+}
+body.sidebar-left .sidebar { border-right:1px solid var(--border); border-left:none; }
+body.sidebar-right .sidebar { border-left:1px solid var(--border); border-right:none; }
+
+.sidebar-header{
+  padding:10px 12px;font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.8px;
+  color:var(--text2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+}
+.sidebar-header-actions{display:flex;gap:4px}
+.icon-btn{
+  width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  border-radius:4px;cursor:pointer;color:var(--text2);
+  font-size:13px;transition:var(--transition);border:none;background:transparent;
+}
+.icon-btn:hover{color:var(--text);background:var(--bg-hover)}
+
+/* Search panel */
+.search-panel{padding:8px 12px;display:flex;flex-direction:column;gap:8px}
+.search-input{
+  width:100%;padding:7px 10px;background:var(--bg-deep);
+  border:1px solid var(--border);border-radius:6px;
+  color:var(--text);font-family:var(--font-mono);font-size:12px;outline:none;
+}
+.search-input:focus{border-color:var(--accent)}
+.search-results{flex:1;overflow-y:auto}
+.search-result-item{
+  padding:4px 12px;cursor:pointer;font-size:12px;
+  font-family:var(--font-mono);color:var(--text2);
+}
+.search-result-item:hover{background:var(--bg-hover);color:var(--text)}
+.search-result-file{font-size:11px;color:var(--accent);padding:6px 12px 2px;font-weight:600}
+
+/* File tree */
+.file-tree{flex:1;overflow-y:auto;padding:4px 0}
+.tree-item{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 8px 4px 0;cursor:pointer;
+  font-size:13px;color:var(--text);
+  border-radius:4px;margin:1px 4px;
+  transition:background var(--transition);
+  position:relative;user-select:none;
+}
+.tree-item:hover{background:var(--bg-hover)}
+.tree-item.selected{background:var(--bg-active)}
+.tree-item .icon{width:16px;text-align:center;font-size:13px;flex-shrink:0}
+.tree-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tree-item .item-actions{
+  display:none;gap:2px;margin-left:4px;
+}
+.tree-item:hover .item-actions{display:flex}
+.tree-item .item-actions .icon-btn{width:18px;height:18px;font-size:11px}
+.folder-children{margin-left:8px}
+.arrow{font-size:9px;width:12px;text-align:center;color:var(--text2);flex-shrink:0;transition:transform 0.15s}
+.arrow.open{transform:rotate(90deg)}
+.sidebar-footer{padding:8px;border-top:1px solid var(--border);flex-shrink:0}
+
+/* ===== EDITOR AREA ===== */
+.editor-area{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+
+/* Tabs */
+.tabs-bar{
+  display:flex;background:var(--bg-panel);
+  border-bottom:1px solid var(--border);
+  overflow-x:auto;flex-shrink:0;height:36px;
+}
+.tabs-bar::-webkit-scrollbar{height:3px}
+.tab{
+  display:flex;align-items:center;gap:6px;
+  padding:0 14px;height:100%;
+  font-size:12.5px;white-space:nowrap;
+  cursor:pointer;color:var(--text2);
+  border-right:1px solid var(--border);
+  transition:var(--transition);flex-shrink:0;
+  position:relative;
+}
+.tab:hover{background:var(--bg-hover);color:var(--text)}
+.tab.active{background:var(--bg-deep);color:var(--text);border-bottom:2px solid var(--accent);margin-bottom:-1px}
+.tab .tab-icon{font-size:12px}
+.tab .tab-close{
+  width:16px;height:16px;border-radius:3px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;opacity:0;transition:var(--transition);
+  border:none;background:transparent;color:inherit;cursor:pointer;
+}
+.tab:hover .tab-close{opacity:0.6}
+.tab .tab-close:hover{opacity:1;background:var(--bg-hover)}
+.tab.dirty::before{
+  content:'';width:7px;height:7px;border-radius:50%;
+  background:var(--accent);display:inline-block;margin-right:-2px;
+}
+
+/* Editor wrapper */
+.editor-wrapper{flex:1;display:flex;flex-direction:column;position:relative;min-height:0}
+.welcome-screen{
+  position:absolute;inset:0;
+  background:var(--bg-deep);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:10;padding:40px;text-align:center;
+}
+.welcome-logo{
+  font-size:3rem;font-weight:700;
+  background:linear-gradient(135deg,#f6d365,#a16ec9 60%,#79c0ff);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  margin-bottom:8px;letter-spacing:-1px;
+}
+.welcome-sub{color:var(--text2);font-size:13px;margin-bottom:32px}
+.welcome-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.welcome-recent{margin-top:36px;text-align:left;max-width:360px;width:100%}
+.welcome-recent h4{font-size:12px;text-transform:uppercase;letter-spacing:0.6px;color:var(--text3);margin-bottom:8px}
+.recent-item{
+  display:flex;align-items:center;gap:8px;padding:6px 0;
+  cursor:pointer;color:var(--text2);font-size:13px;
+  border-radius:4px;transition:var(--transition);
+}
+.recent-item:hover{color:var(--text)}
+#monacoContainer{flex:1;min-height:0}
+
+/* Bottom panel */
+.bottom-panel{
+  height:var(--panel-h);flex-shrink:0;
+  background:var(--bg-panel);border-top:1px solid var(--border);
+  display:flex;flex-direction:column;
+  resize:vertical;
+}
+.panel-tabs{
+  display:flex;align-items:center;
+  border-bottom:1px solid var(--border);
+  padding:0 8px;height:32px;flex-shrink:0;gap:2px;
+}
+.panel-tab{
+  display:flex;align-items:center;gap:5px;
+  padding:0 12px;height:100%;font-size:11.5px;
+  cursor:pointer;color:var(--text2);
+  border-bottom:2px solid transparent;transition:var(--transition);
+  border-radius:4px 4px 0 0;
+}
+.panel-tab.active{color:var(--text);border-bottom-color:var(--accent)}
+.panel-tab:hover{background:var(--bg-hover)}
+.panel-spacer{flex:1}
+.panel-close{color:var(--text2);cursor:pointer;font-size:13px;padding:4px}
+.panel-close:hover{color:var(--text)}
+.panel-body{flex:1;overflow:hidden}
+.panel-section{height:100%;display:none}
+.panel-section.active{display:flex;flex-direction:column}
+#terminalContainer{flex:1;padding:4px 6px;overflow:hidden}
+.preview-iframe{
+  width:100%;height:100%;border:none;background:var(--bg-deep);
+}
+.output-log{
+  flex:1;overflow-y:auto;
+  padding:8px 12px;
+  font-family:var(--font-mono);font-size:12px;
+  color:var(--text2);
+}
+.output-log .log-line{padding:1px 0;line-height:1.6}
+.output-log .log-ok{color:var(--green)}
+.output-log .log-err{color:var(--red)}
+.output-log .log-info{color:var(--blue)}
+
+/* Status bar */
+.status-bar{
+  height:24px;flex-shrink:0;
+  display:flex;align-items:center;
+  padding:0 12px;gap:12px;
+  background:var(--bg-panel);border-top:1px solid var(--border);
+  font-size:11px;color:var(--text3);
+}
+.status-item{display:flex;align-items:center;gap:4px;cursor:default}
+.status-item.clickable{cursor:pointer;border-radius:3px;padding:0 4px}
+.status-item.clickable:hover{background:var(--bg-hover);color:var(--text)}
+.status-dot{width:7px;height:7px;border-radius:50%}
+.status-spacer{flex:1}
+
+/* ===== CHAT PANEL ===== */
+.chat-panel{
+  width:var(--chat-w);flex-shrink:0;
+  background:var(--bg-panel);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;position:relative;
+}
+.chat-header{
+  padding:0 12px;height:36px;
+  display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.chat-header-title{font-size:12px;font-weight:600;color:var(--text);flex:1;text-transform:uppercase;letter-spacing:0.5px}
+.model-select{
+  font-size:11px;background:var(--bg-deep);border:1px solid var(--border);
+  color:var(--text2);border-radius:5px;padding:3px 6px;cursor:pointer;
+  font-family:var(--font-ui);max-width:180px;outline:none;
+}
+.model-select:focus{border-color:var(--accent)}
+.chat-messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.chat-msg{max-width:100%;display:flex;flex-direction:column;gap:4px}
+.chat-msg.user .bubble{
+  align-self:flex-end;max-width:85%;
+  background:linear-gradient(145deg,#7b4faa,#a16ec9);
+  color:#fff;border-radius:16px 16px 4px 16px;
+  padding:10px 14px;font-size:13px;line-height:1.5;
+  word-break:break-word;
+}
+.chat-msg.assistant .bubble{
+  align-self:flex-start;max-width:100%;width:100%;
+  background:var(--bg-hover);border:1px solid var(--border);
+  border-radius:4px 16px 16px 16px;
+  padding:10px 14px;font-size:13px;line-height:1.5;
+  word-break:break-word;
+}
+.chat-msg .meta{font-size:10px;color:var(--text3);padding:0 4px}
+.chat-msg.user .meta{text-align:right}
+
+/* Markdown in chat */
+.bubble h1,.bubble h2,.bubble h3{color:var(--text);margin:8px 0 4px;line-height:1.3}
+.bubble h1{font-size:15px}.bubble h2{font-size:14px}.bubble h3{font-size:13px}
+.bubble p{margin:4px 0;line-height:1.6}
+.bubble ul,.bubble ol{padding-left:16px;margin:4px 0}
+.bubble li{margin:2px 0}
+.bubble code{
+  font-family:var(--font-mono);font-size:11.5px;
+  background:rgba(0,0,0,0.3);border-radius:3px;
+  padding:1px 4px;color:var(--blue);
+}
+.bubble pre{
+  background:#0d1117;border:1px solid var(--border);
+  border-radius:8px;overflow:hidden;margin:8px 0;
+}
+.bubble pre code{
+  display:block;padding:12px;overflow-x:auto;
+  font-size:11.5px;color:inherit;background:transparent;
+}
+.code-block-header{
+  display:flex;align-items:center;
+  padding:6px 12px;background:rgba(255,255,255,0.05);
+  border-bottom:1px solid var(--border);
+  font-size:11px;color:var(--text2);
+}
+.code-block-header .lang{flex:1;font-family:var(--font-mono)}
+.code-block-header .file-path{color:var(--accent);font-family:var(--font-mono);flex:1}
+.code-actions{display:flex;gap:4px}
+.code-action-btn{
+  font-size:10px;padding:3px 8px;border-radius:4px;
+  cursor:pointer;border:1px solid var(--border);
+  background:var(--bg-panel);color:var(--text2);
+  transition:var(--transition);font-family:var(--font-ui);
+}
+.code-action-btn:hover{background:var(--accent);color:#000;border-color:var(--accent)}
+.code-action-btn.apply{background:rgba(63,185,80,0.15);border-color:var(--green);color:var(--green)}
+.code-action-btn.apply:hover{background:var(--green);color:#000}
+
+.chat-input-bar{
+  padding:10px 12px;border-top:1px solid var(--border);
+  display:flex;flex-direction:column;gap:8px;flex-shrink:0;
+}
+.chat-input-row{display:flex;gap:6px;align-items:flex-end}
+.chat-textarea{
+  flex:1;background:var(--bg-deep);
+  border:1px solid var(--border);border-radius:10px;
+  padding:8px 12px;color:var(--text);
+  font-family:var(--font-ui);font-size:13px;
+  outline:none;resize:none;
+  min-height:36px;max-height:120px;line-height:1.5;
+}
+.chat-textarea:focus{border-color:var(--accent)}
+.send-btn{
+  width:34px;height:34px;border-radius:8px;
+  background:var(--accent);border:none;cursor:pointer;
+  color:#000;font-size:14px;
+  display:flex;align-items:center;justify-content:center;
+  transition:var(--transition);flex-shrink:0;
+}
+.send-btn:hover{background:#ffd166}
+.send-btn:disabled{background:var(--bg-hover);color:var(--text3);cursor:not-allowed}
+.chat-tools{display:flex;gap:4px}
+.chat-tool-btn{
+  font-size:11px;padding:3px 8px;border-radius:5px;
+  cursor:pointer;border:1px solid var(--border);
+  background:transparent;color:var(--text2);
+  transition:var(--transition);font-family:var(--font-ui);
+  display:flex;align-items:center;gap:4px;
+}
+.chat-tool-btn:hover{background:var(--bg-hover);color:var(--text)}
+.chat-tool-btn.active{background:rgba(249,184,58,0.15);border-color:var(--accent);color:var(--accent)}
+.typing-dots{display:inline-flex;gap:4px;align-items:center;padding:4px}
+.typing-dots span{
+  width:6px;height:6px;background:var(--accent);
+  border-radius:50%;animation:tdot 1.2s infinite ease-in-out;
+}
+.typing-dots span:nth-child(2){animation-delay:0.2s}
+.typing-dots span:nth-child(3){animation-delay:0.4s}
+@keyframes tdot{0%,80%,100%{transform:scale(0.6);opacity:0.4}40%{transform:scale(1);opacity:1}}
+
+/* ===== RESIZE HANDLES ===== */
+.resize-h{
+  position:absolute;top:0;width:4px;height:100%;
+  cursor:ew-resize;z-index:20;background:transparent;
+}
+.resize-h:hover,.resize-h.dragging{background:var(--accent);opacity:0.5}
+body.sidebar-left .sidebar .resize-h { right: -2px; left: auto; }
+body.sidebar-right .sidebar .resize-h { left: -2px; right: auto; }
+.chat-panel .resize-h{left:-2px; right:auto; } /* مقبض على اليسار */
+
+/* ===== MODALS ===== */
+.modal-overlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);
+  display:none;align-items:center;justify-content:center;z-index:9000;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--bg-panel);border:1px solid var(--border);
+  border-radius:12px;padding:24px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  width:100%;max-height:80vh;overflow-y:auto;
+}
+.modal h3{font-size:15px;font-weight:600;margin-bottom:16px;color:var(--text)}
+.modal-section{margin-bottom:20px}
+.modal-section h4{font-size:11px;text-transform:uppercase;letter-spacing:0.6px;color:var(--text3);margin-bottom:10px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px}
+.field input,.field select{
+  width:100%;padding:8px 10px;
+  background:var(--bg-deep);border:1px solid var(--border);
+  border-radius:6px;color:var(--text);
+  font-family:var(--font-ui);font-size:13px;outline:none;
+}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.field input[type=range]{padding:4px 0}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+
+/* Command palette */
+.cmd-palette{
+  width:560px;max-width:92vw;
+  background:var(--bg-panel);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;
+  box-shadow:0 30px 80px rgba(0,0,0,0.6);
+}
+.cmd-input-wrap{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px;border-bottom:1px solid var(--border);
+}
+.cmd-icon{color:var(--text2);font-size:14px}
+.cmd-input{
+  flex:1;background:transparent;border:none;outline:none;
+  font-size:14px;color:var(--text);font-family:var(--font-ui);
+}
+.cmd-list{max-height:320px;overflow-y:auto}
+.cmd-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 16px;cursor:pointer;
+  color:var(--text2);font-size:13px;
+  transition:background var(--transition);
+}
+.cmd-item:hover,.cmd-item.selected{background:var(--bg-hover);color:var(--text)}
+.cmd-item .cmd-icon2{width:18px;text-align:center;font-size:13px;color:var(--accent)}
+.cmd-item .cmd-desc{font-size:11px;color:var(--text3);margin-left:auto}
+.cmd-item .cmd-kbd{
+  font-size:10px;padding:2px 6px;border-radius:3px;
+  background:var(--bg-deep);border:1px solid var(--border);
+  color:var(--text3);font-family:var(--font-mono);
+}
+.cmd-section{
+  padding:6px 16px 2px;
+  font-size:10px;text-transform:uppercase;letter-spacing:0.6px;
+  color:var(--text3);
+}
+
+/* Btn styles */
+.btn{
+  padding:7px 14px;border-radius:6px;font-size:13px;
+  cursor:pointer;font-family:var(--font-ui);border:1px solid var(--border);
+  background:var(--bg-hover);color:var(--text);transition:var(--transition);
+  display:inline-flex;align-items:center;gap:6px;
+}
+.btn:hover{background:var(--accent);color:#000;border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:#000;border-color:var(--accent)}
+.btn.primary:hover{background:#ffd166}
+.btn.danger{color:var(--red);border-color:var(--red)}
+.btn.danger:hover{background:var(--red);color:#fff}
+.btn.ghost{background:transparent}
+.btn.ghost:hover{background:var(--bg-hover);color:var(--text)}
+
+/* Context menu */
+.ctx-menu{
+  position:fixed;z-index:9999;
+  background:var(--bg-panel);border:1px solid var(--border);
+  border-radius:8px;padding:4px;min-width:160px;
+  box-shadow:0 8px 30px rgba(0,0,0,0.4);
+}
+.ctx-item{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 10px;cursor:pointer;border-radius:4px;
+  font-size:12.5px;color:var(--text2);transition:background var(--transition);
+}
+.ctx-item:hover{background:var(--bg-hover);color:var(--text)}
+.ctx-item .ctx-icon{width:14px;text-align:center;font-size:12px;color:var(--accent)}
+.ctx-item.danger .ctx-icon{color:var(--red)}
+.ctx-item.danger:hover{color:var(--red)}
+.ctx-sep{height:1px;background:var(--border);margin:3px 0}
+
+/* Notifications */
+.notification{
+  position:fixed;bottom:36px;right:16px;z-index:9998;
+  background:var(--bg-panel);border:1px solid var(--border);
+  border-radius:8px;padding:10px 14px;
+  font-size:12.5px;color:var(--text);
+  box-shadow:0 4px 20px rgba(0,0,0,0.3);
+  animation:slideIn 0.2s ease;
+  display:flex;align-items:center;gap:8px;max-width:300px;
+}
+.notification.ok{border-left:3px solid var(--green)}
+.notification.err{border-left:3px solid var(--red)}
+.notification.info{border-left:3px solid var(--blue)}
+@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* SCM specific */
+.scm-panel{
+  padding:12px;
+  overflow-y:auto;
+}
+.scm-header{
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:12px;
+}
+.scm-commit-input{
+  width:100%;
+  padding:8px;
+  background:var(--bg-deep);
+  border:1px solid var(--border);
+  border-radius:6px;
+  color:var(--text);
+  font-family:var(--font-ui);
+  margin-bottom:8px;
+}
+.scm-file-list{
+  list-style:none;
+}
+.scm-file-item{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 0;
+  border-bottom:1px solid var(--border);
+  font-size:12px;
+}
+.scm-file-item .status{
+  width:16px;
+  text-align:center;
+}
+.scm-file-item .status.modified{color:var(--accent);}
+.scm-file-item .status.added{color:var(--green);}
+.scm-file-item .status.deleted{color:var(--red);}
+.scm-file-item .file-path{flex:1;}
+.scm-actions{
+  display:flex;
+  gap:4px;
+}
+.agent-command-hint{
+  font-size:11px;
+  color:var(--text3);
+  margin-top:4px;
+}
+
+/* Tooltip override for welcome */
+.keyboard-hint{
+  font-size:11px;color:var(--text3);margin-top:20px;
+}
+.kbd{
+  display:inline-block;background:var(--bg-hover);
+  border:1px solid var(--border);border-radius:4px;
+  padding:1px 6px;font-family:var(--font-mono);font-size:10.5px;
+  color:var(--text2);
+}
+
+/* ===== EXTENSIONS PANEL ===== */
+.extensions-panel {
+  padding: 16px;
+}
+.ext-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.ext-item img {
+  border-radius: 4px;
+  object-fit: cover;
+}
+.ext-item .btn {
+  margin-left: auto;
+}
+
+/* Download section */
+.download-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+.download-card {
+  text-align: center;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: var(--transition);
+  cursor: pointer;
+  color: var(--text2);
+}
+.download-card:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--accent);
+}
+.download-card i {
+  font-size: 28px;
+  margin-bottom: 8px;
+  color: var(--accent);
+}
+
+/* Main row: use order for flexibility */
+.main-row {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+.activity-bar { order: 1; }
+body.sidebar-left .sidebar { order: 2; }
+body.sidebar-left .editor-area { order: 3; }
+body.sidebar-left .chat-panel { order: 4; }
+body.sidebar-left .sidebar { border-right:1px solid var(--border); border-left:none; }
+body.sidebar-left .sidebar .resize-h { right: -2px; left: auto; }
+
+body.sidebar-right .sidebar { order: 3; }
+body.sidebar-right .editor-area { order: 2; }
+body.sidebar-right .chat-panel { order: 4; }
+body.sidebar-right .sidebar { border-left:1px solid var(--border); border-right:none; }
+body.sidebar-right .sidebar .resize-h { left: -2px; right: auto; }
+
+</style>
+</head>
+<body class="sidebar-left">
+<div id="app">
+  <!-- Menu Bar -->
+  <div class="menu-bar" id="menuBar">
+    <div class="menu-item" data-menu="file">File
+      <div class="menu-dropdown">
+        <div class="menu-dropdown-item" data-action="newFile"><i class="fas fa-file-circle-plus"></i> New File</div>
+        <div class="menu-dropdown-item" data-action="newFolder"><i class="fas fa-folder-plus"></i> New Folder</div>
+        <div class="menu-separator"></div>
+        <div class="menu-dropdown-item" data-action="save"><i class="fas fa-save"></i> Save</div>
+        <div class="menu-dropdown-item" data-action="exportZip"><i class="fas fa-download"></i> Export ZIP</div>
+        <div class="menu-dropdown-item" data-action="importZip"><i class="fas fa-upload"></i> Import ZIP</div>
+      </div>
+    </div>
+    <div class="menu-item" data-menu="edit">Edit
+      <div class="menu-dropdown">
+        <div class="menu-dropdown-item" data-action="undo"><i class="fas fa-undo"></i> Undo</div>
+        <div class="menu-dropdown-item" data-action="redo"><i class="fas fa-redo"></i> Redo</div>
+      </div>
+    </div>
+    <div class="menu-item" data-menu="view">View
+      <div class="menu-dropdown">
+        <div class="menu-dropdown-item" data-action="toggleTheme"><i class="fas fa-circle-half-stroke"></i> Toggle Theme</div>
+        <div class="menu-dropdown-item" data-action="toggleMinimap"><i class="fas fa-map"></i> Toggle Minimap</div>
+        <div class="menu-dropdown-item" data-action="toggleWordWrap"><i class="fas fa-text-width"></i> Toggle Word Wrap</div>
+        <div class="menu-separator"></div>
+        <div class="menu-dropdown-item" data-action="togglePanel"><i class="fas fa-terminal"></i> Toggle Terminal</div>
+      </div>
+    </div>
+    <div class="menu-item" data-menu="help">Help
+      <div class="menu-dropdown">
+        <div class="menu-dropdown-item" data-action="showWelcome"><i class="fas fa-info-circle"></i> Welcome</div>
+      </div>
+    </div>
+    <div style="flex:1"></div>
+  </div>
+
+  <!-- Main Layout (Activity Bar + Sidebar + Editor + Chat) -->
+  <div class="main-row">
+    <!-- Activity Bar (left fixed) -->
+    <div class="activity-bar">
+      <button class="act-btn active" data-view="explorer" id="actExplorer"><i class="fas fa-copy"></i></button>
+      <button class="act-btn" data-view="search" id="actSearch"><i class="fas fa-magnifying-glass"></i></button>
+      <button class="act-btn" data-view="scm" id="actSCM"><i class="fas fa-code-branch"></i></button>
+      <button class="act-btn" data-view="extensions" id="actExtensions"><i class="fas fa-puzzle-piece"></i></button>
+      <div class="act-spacer"></div>
+      <button class="act-btn" id="actSettings"><i class="fas fa-gear"></i></button>
+      <button class="act-btn" id="actTheme"><i class="fas fa-circle-half-stroke"></i></button>
+    </div>
+
+    <!-- Sidebar (position controlled by body class) -->
+    <div class="sidebar" id="mainSidebar">
+      <!-- Explorer section -->
+      <div id="explorerSection" style="display:flex;flex-direction:column;height:100%">
+        <div class="sidebar-header">
+          <span>Explorer</span>
+          <div class="sidebar-header-actions">
+            <button class="icon-btn" id="newFileBtn"><i class="fas fa-file-circle-plus"></i></button>
+            <button class="icon-btn" id="newFolderBtn"><i class="fas fa-folder-plus"></i></button>
+            <button class="icon-btn" id="collapseAllBtn"><i class="fas fa-compress"></i></button>
+          </div>
+        </div>
+        <div class="file-tree" id="fileTreeContainer"></div>
+        <div class="sidebar-footer">
+          <button class="btn" style="width:100%;justify-content:center" id="exportZipBtn"><i class="fas fa-download"></i> Export ZIP</button>
+        </div>
+      </div>
+      <!-- Search section -->
+      <div id="searchSection" style="display:none;flex-direction:column;height:100%">
+        <div class="sidebar-header"><span>Search</span></div>
+        <div class="search-panel">
+          <input class="search-input" id="searchInput" placeholder="Search in files...">
+        </div>
+        <div class="search-results" id="searchResults"></div>
+      </div>
+      <!-- SCM section -->
+      <div id="scmSection" style="display:none;flex-direction:column;height:100%">
+        <div class="sidebar-header"><span>Source Control</span></div>
+        <div class="scm-panel">
+          <div class="scm-header"><span>Changes</span><button class="icon-btn" id="refreshSCMBtn"><i class="fas fa-rotate"></i></button></div>
+          <input type="text" class="scm-commit-input" id="commitMessageInput" placeholder="Commit message">
+          <ul class="scm-file-list" id="scmFileList"></ul>
+          <div style="margin-top:12px;display:flex;gap:8px;">
+            <button class="btn primary" id="commitAllBtn" style="flex:1">Commit All</button>
+            <button class="btn" id="revertAllBtn" style="flex:1">Revert All</button>
+          </div>
+          <div style="margin-top:12px;">
+            <h4 style="font-size:12px;color:var(--text2);margin-bottom:4px;">Commits</h4>
+            <ul class="scm-file-list" id="commitsList"></ul>
+          </div>
+        </div>
+      </div>
+      <!-- Extensions section -->
+      <div id="extensionsSection" style="display:none;flex-direction:column;height:100%">
+        <div class="sidebar-header">
+          <span>Extensions</span>
+          <div class="sidebar-header-actions">
+            <button class="icon-btn" id="installExtBtnSidebar"><i class="fas fa-plus-circle"></i></button>
+            <button class="icon-btn" id="refreshExtensionsBtn"><i class="fas fa-refresh"></i></button>
+            <button class="icon-btn" id="demoExtBtn" title="Install Demo Extension"><i class="fas fa-flask"></i></button>
+          </div>
+        </div>
+        <div class="extensions-panel" id="extensionsListSidebar"></div>
+      </div>
+      <div class="resize-h" id="sidebarResizeH"></div>
+    </div>
+
+    <!-- Editor Area (center) -->
+    <div class="editor-area">
+      <div class="tabs-bar" id="tabsBar"></div>
+      <div class="editor-wrapper">
+        <div class="welcome-screen" id="welcomeScreen">
+          <div class="welcome-logo">SUPER IDE</div>
+          <div class="welcome-sub">AI-Powered &middot; Lightning Fast &middot; Professional</div>
+          <div class="welcome-actions">
+            <button class="btn primary" id="wNewFile"><i class="fas fa-plus"></i> New File</button>
+            <button class="btn" id="wImport"><i class="fas fa-folder-open"></i> Import ZIP</button>
+          </div>
+          <div class="welcome-recent" id="welcomeRecent"></div>
+          <div class="keyboard-hint">
+            Press <span class="kbd">Ctrl</span>+<span class="kbd">Shift</span>+<span class="kbd">P</span> to open command palette
+          </div>
+          <div class="agent-command-hint" style="margin-top:16px;">
+            <i class="fas fa-robot"></i> AI Agent: /files, /read, /write, /delete, /commit, /revert, /newfolder
+          </div>
+        </div>
+        <div id="monacoContainer" style="flex:1;display:none"></div>
+      </div>
+
+      <!-- Bottom Panel -->
+      <div class="bottom-panel" id="bottomPanel">
+        <div class="panel-tabs">
+          <div class="panel-tab active" data-panel="terminal"><i class="fas fa-terminal"></i> Terminal</div>
+          <div class="panel-tab" data-panel="output"><i class="fas fa-list"></i> Output</div>
+          <div class="panel-tab" data-panel="problems"><i class="fas fa-triangle-exclamation"></i> Problems</div>
+          <div class="panel-tab" data-panel="preview">
+            <i class="fas fa-eye"></i> Preview
+            <button class="icon-btn" id="openPreviewExternalBtn" title="Open in new tab" style="margin-left:4px;"><i class="fas fa-external-link-alt"></i></button>
+          </div>
+          <div class="panel-spacer"></div>
+          <span class="panel-close" id="clearPanelBtn" title="Clear"><i class="fas fa-trash-can"></i></span>
+          <span class="panel-close" id="togglePanelBtn" title="Toggle Panel"><i class="fas fa-chevron-down"></i></span>
+        </div>
+        <div class="panel-body">
+          <div class="panel-section active" id="terminalSection">
+            <div class="terminal-container" id="terminalContainer"></div>
+          </div>
+          <div class="panel-section" id="outputSection">
+            <div class="output-log" id="outputLog"></div>
+          </div>
+          <div class="panel-section" id="problemsSection">
+            <div class="output-log" id="problemsList"><div style="padding:12px;color:var(--text2)">No problems detected.</div></div>
+          </div>
+          <div class="panel-section" id="previewSection">
+            <iframe id="previewFrame" class="preview-iframe" sandbox="allow-scripts allow-forms"></iframe>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status Bar -->
+      <div class="status-bar">
+        <div class="status-item">
+          <div class="status-dot" style="background:var(--green)"></div>
+          <span id="statusText">Ready</span>
+        </div>
+        <div class="status-spacer"></div>
+        <div class="status-item clickable" id="statusLang"><i class="fas fa-code"></i>&nbsp;<span id="statusLangText">—</span></div>
+        <div class="status-item clickable" id="statusEncoding">UTF-8</div>
+        <div class="status-item" id="statusLine"><i class="fas fa-location-crosshairs"></i>&nbsp;<span id="statusLineText">Ln 1, Col 1</span></div>
+        <div class="status-item" id="statusModel"><i class="fas fa-robot"></i>&nbsp;<span id="statusModelText">AI Ready</span></div>
+        <div class="status-item clickable" id="revenueBtn"><i class="fas fa-dollar-sign"></i> Earn</div>
+      </div>
+    </div>
+
+    <!-- Chat Panel (far right) -->
+    <div class="chat-panel" id="chatPanel">
+      <div class="resize-h" id="chatResizeH"></div>
+      <div class="chat-header">
+        <i class="fas fa-robot" style="color:var(--accent)"></i>
+        <div class="chat-header-title">AI Agent</div>
+        <select class="model-select" id="modelSelect">
+          <option value="openai/gpt-4o-mini">GPT-4o mini</option>
+          <option value="openai/gpt-4o">GPT-4o</option>
+          <option value="anthropic/claude-3-haiku">Claude Haiku</option>
+          <option value="anthropic/claude-3-5-sonnet">Claude Sonnet</option>
+          <option value="deepseek/deepseek-chat">DeepSeek</option>
+          <option value="google/gemini-2.0-flash-exp:free">Gemini Flash (Free)</option>
+          <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (Free)</option>
+          <option value="qwen/qwen-2.5-coder-32b-instruct:free">Qwen 2.5 Coder (Free)</option>
+        </select>
+        <button class="icon-btn" id="clearChatBtn" title="Clear Chat"><i class="fas fa-eraser"></i></button>
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-msg assistant">
+          <div class="bubble">
+            <strong>SUPER IDE AI</strong> ready.<br>
+            I can see and edit your files. Try commands:<br>
+            <code>/files</code> - list all files<br>
+            <code>/read &lt;file&gt;</code> - read file content<br>
+            <code>/write &lt;file&gt; &lt;content&gt;</code> - create/overwrite file<br>
+            <code>/delete &lt;file&gt;</code> - delete file<br>
+            <code>/newfolder &lt;name&gt;</code> - create folder<br>
+            <code>/commit &lt;message&gt;</code> - commit changes<br>
+            <code>/revert</code> - revert to last commit<br>
+            Or just ask naturally!
+          </div>
+        </div>
+      </div>
+      <div class="chat-input-bar">
+        <div class="chat-tools">
+          <button class="chat-tool-btn" id="includeFileBtn" title="Include current file"><i class="fas fa-paperclip"></i> Include File</button>
+          <button class="chat-tool-btn" id="reviewBtn" title="Review current file"><i class="fas fa-eye"></i> Review</button>
+          <button class="chat-tool-btn" id="explainBtn" title="Explain selected code"><i class="fas fa-lightbulb"></i> Explain</button>
+        </div>
+        <div class="chat-input-row">
+          <textarea class="chat-textarea" id="chatInput" placeholder="Ask AI or use /command..." rows="1"></textarea>
+          <button class="send-btn" id="sendBtn"><i class="fas fa-paper-plane"></i></button>
+        </div>
+        <div class="agent-command-hint">
+          <i class="fas fa-terminal"></i> /files, /read, /write, /delete, /newfolder, /commit, /revert
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal" style="max-width:560px">
+    <h3><i class="fas fa-gear" style="color:var(--accent)"></i> Settings</h3>
+    <div class="modal-section">
+      <h4>Appearance</h4>
+      <div class="field">
+        <label>Theme</label>
+        <select id="themeSelect"><option value="dark">Dark</option><option value="light">Light</option></select>
+      </div>
+      <div class="field">
+        <label>Sidebar Position</label>
+        <select id="sidebarPositionSelect">
+          <option value="left">Left</option>
+          <option value="right">Right</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Font Size: <span id="fontSizeVal">14</span>px</label>
+        <input type="range" id="fontSizeRange" min="11" max="24" value="14">
+      </div>
+      <div class="field" style="display:flex;align-items:center;justify-content:space-between">
+        <label style="margin:0">Word Wrap</label>
+        <input type="checkbox" id="wordWrapChk" style="width:auto">
+      </div>
+      <div class="field" style="display:flex;align-items:center;justify-content:space-between">
+        <label style="margin:0">Minimap</label>
+        <input type="checkbox" id="minimapChk" checked style="width:auto">
+      </div>
+      <div class="field">
+        <label>Editor Font Family</label>
+        <input type="text" id="editorFontFamily" value="JetBrains Mono, monospace" placeholder="e.g. 'Fira Code', monospace">
+      </div>
+      <div class="field">
+        <label>Line Height: <span id="lineHeightVal">21</span>px</label>
+        <input type="range" id="lineHeightRange" min="16" max="40" value="21">
+      </div>
+      <div class="field">
+        <label>Text Color (Hex)</label>
+        <input type="color" id="editorTextColor" value="#e6edf3">
+      </div>
+    </div>
+    <div class="modal-section">
+      <h4>API Keys</h4>
+      <div class="field">
+        <label>OpenRouter</label>
+        <input type="password" id="apiKeyInput" placeholder="sk-or-v1-...">
+      </div>
+      <div class="field">
+        <label>OpenAI</label>
+        <input type="password" id="openaiKeyInput" placeholder="sk-...">
+      </div>
+      <div class="field">
+        <label>Claude (Anthropic)</label>
+        <input type="password" id="claudeKeyInput" placeholder="sk-ant-...">
+      </div>
+      <div class="field">
+        <label>Gemini (Google)</label>
+        <input type="password" id="geminiKeyInput" placeholder="AIza...">
+      </div>
+      <div class="field">
+        <label>DeepSeek</label>
+        <input type="password" id="deepseekKeyInput" placeholder="sk-...">
+      </div>
+      <div class="field">
+        <label>Custom Model (overrides selector)</label>
+        <input type="text" id="customModelInput" placeholder="e.g. openai/gpt-4o">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost" id="cancelSettingsBtn">Cancel</button>
+      <button class="btn primary" id="saveSettingsBtn"><i class="fas fa-check"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Download Modal -->
+<div class="modal-overlay" id="downloadModal">
+  <div class="modal" style="max-width:640px">
+    <h3><i class="fas fa-download" style="color:var(--accent)"></i> Download SUPER IDE</h3>
+    <div class="download-grid">
+      <div class="download-card" onclick="window.open('https://example.com/superide-windows.exe')"><i class="fab fa-windows"></i><div>Windows</div><small>.exe</small></div>
+      <div class="download-card" onclick="window.open('https://example.com/superide-macos.dmg')"><i class="fab fa-apple"></i><div>macOS</div><small>.dmg</small></div>
+      <div class="download-card" onclick="window.open('https://example.com/superide-linux.AppImage')"><i class="fab fa-linux"></i><div>Linux</div><small>.AppImage</small></div>
+      <div class="download-card" onclick="window.open('https://example.com/superide-android.apk')"><i class="fab fa-android"></i><div>Android</div><small>.apk</small></div>
+      <div class="download-card" onclick="window.open('https://example.com/superide-ios.ipa')"><i class="fab fa-apple"></i><div>iOS</div><small>.ipa</small></div>
+    </div>
+    <p style="color:var(--text2)">Web version is always free. Desktop apps coming soon.</p>
+    <div class="modal-footer"><button class="btn" id="closeDownloadBtn">Close</button></div>
+  </div>
+</div>
+
+<!-- Revenue Modal -->
+<div class="modal-overlay" id="revenueModal">
+  <div class="modal" style="max-width:480px">
+    <h3><i class="fas fa-dollar-sign" style="color:var(--accent)"></i> Support SUPER IDE</h3>
+    <p style="color:var(--text2);margin-bottom:16px;">This app is free. Consider supporting development or upgrading for advanced features.</p>
+    <div class="field"><button class="btn primary" style="width:100%" onclick="alert('Thank you!')"><i class="fab fa-paypal"></i> Donate via PayPal</button></div>
+    <div class="field"><button class="btn primary" style="width:100%" onclick="alert('Premium features coming soon!')"><i class="fas fa-crown"></i> Upgrade to Pro</button></div>
+    <div class="modal-footer"><button class="btn" id="closeRevenueBtn">Close</button></div>
+  </div>
+</div>
+
+<!-- Command Palette -->
+<div class="modal-overlay" id="cmdModal">
+  <div class="cmd-palette">
+    <div class="cmd-input-wrap"><i class="fas fa-terminal cmd-icon"></i><input class="cmd-input" id="cmdInput" placeholder="Type a command..."></div>
+    <div class="cmd-list" id="cmdList"></div>
+  </div>
+</div>
+
+<!-- Rename Modal -->
+<div class="modal-overlay" id="renameModal">
+  <div class="modal" style="max-width:360px">
+    <h3>Rename File</h3>
+    <div class="field"><label>New Name</label><input type="text" id="renameInput"></div>
+    <div class="modal-footer"><button class="btn ghost" id="cancelRenameBtn">Cancel</button><button class="btn primary" id="confirmRenameBtn">Rename</button></div>
+  </div>
+</div>
+
+<!-- Context Menu -->
+<div class="ctx-menu" id="ctxMenu" style="display:none"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ========== STATE ==========
+  var IDE = window.IDE = {
+    apiKey: localStorage.getItem("ide_apiKey") || "",
+    model: localStorage.getItem("ide_model") || "openai/gpt-4o-mini",
+    theme: localStorage.getItem("ide_theme") || "dark",
+    fontSize: parseInt(localStorage.getItem("ide_fontSize") || "14"),
+    wordWrap: localStorage.getItem("ide_wordWrap") === "true",
+    minimap: localStorage.getItem("ide_minimap") !== "false",
+    sidebarPosition: localStorage.getItem("ide_sidebarPosition") || "left",
+    fs: null,
+    editor: null,
+    monaco: null,
+    tabs: [],
+    dirtyTabs: new Set(),
+    activeFile: null,
+    recentFiles: JSON.parse(localStorage.getItem("ide_recent") || "[]"),
+    fileTreeState: new Map(),
+    terminal: null,
+    fitAddon: null,
+    editorReady: false,
+    chatHistory: [],
+    isStreaming: false,
+    includeFile: false,
+    panelVisible: true,
+    previewBlobUrl: null,
+    scm: {
+      commits: JSON.parse(localStorage.getItem("ide_commits") || "[]"),
+      staged: new Set()
+    },
+    extensions: new Map(),
+    editorFontFamily: localStorage.getItem("ide_editorFont") || "JetBrains Mono, monospace",
+    editorFontSize: parseInt(localStorage.getItem("ide_editorFontSize")||"14"),
+    lineHeight: parseInt(localStorage.getItem("ide_lineHeight")||"21"),
+    editorTextColor: localStorage.getItem("ide_textColor") || "#e6edf3",
+    apiKeys: {
+      openai: localStorage.getItem("ide_apikey_openai") || "",
+      claude: localStorage.getItem("ide_apikey_claude") || "",
+      gemini: localStorage.getItem("ide_apikey_gemini") || "",
+      deepseek: localStorage.getItem("ide_apikey_deepseek") || "",
+      openrouter: localStorage.getItem("ide_apiKey") || ""
+    }
+  };
+
+  // ========== Apply Sidebar Position ==========
+  function applySidebarPosition() {
+    document.body.classList.remove('sidebar-left', 'sidebar-right');
+    document.body.classList.add('sidebar-' + IDE.sidebarPosition);
+  }
+
+  // ========== Virtual FS ==========
+  function VirtualFS() {
+    this.dbName = "SuperIDE_FS_v2";
+    this.store = "files";
+    var self = this;
+    this.ready = new Promise(function (resolve, reject) {
+      var req = indexedDB.open(self.dbName, 1);
+      req.onupgradeneeded = function (e) {
+        if (!e.target.result.objectStoreNames.contains(self.store)) {
+          e.target.result.createObjectStore(self.store, { keyPath: "path" });
+        }
+      };
+      req.onsuccess = function (e) { self.db = e.target.result; resolve(); };
+      req.onerror = reject;
+    });
+  }
+  VirtualFS.prototype.save = function (path, content) {
+    var self = this;
+    return this.ready.then(function () {
+      return new Promise(function (resolve, reject) {
+        var tx = self.db.transaction(self.store, "readwrite");
+        tx.objectStore(self.store).put({ path: path, content: content, updated: Date.now() });
+        tx.oncomplete = resolve;
+        tx.onerror = reject;
+      });
+    });
+  };
+  VirtualFS.prototype.get = function (path) {
+    var self = this;
+    return this.ready.then(function () {
+      return new Promise(function (resolve, reject) {
+        var tx = self.db.transaction(self.store, "readonly");
+        var req = tx.objectStore(self.store).get(path);
+        req.onsuccess = function () { resolve(req.result ? req.result.content : ""); };
+        req.onerror = reject;
+      });
+    });
+  };
+  VirtualFS.prototype.del = function (path) {
+    var self = this;
+    return this.ready.then(function () {
+      return new Promise(function (resolve, reject) {
+        var tx = self.db.transaction(self.store, "readwrite");
+        tx.objectStore(self.store).delete(path);
+        tx.oncomplete = resolve;
+        tx.onerror = reject;
+      });
+    });
+  };
+  VirtualFS.prototype.list = function () {
+    var self = this;
+    return this.ready.then(function () {
+      return new Promise(function (resolve, reject) {
+        var tx = self.db.transaction(self.store, "readonly");
+        var req = tx.objectStore(self.store).getAll();
+        req.onsuccess = function () { resolve(req.result.map(function (f) { return f.path; })); };
+        req.onerror = reject;
+      });
+    });
+  };
+  VirtualFS.prototype.rename = function (oldPath, newPath) {
+    var self = this;
+    return self.get(oldPath).then(function (content) {
+      return self.save(newPath, content);
+    }).then(function () {
+      return self.del(oldPath);
+    });
+  };
+  VirtualFS.prototype.exportZip = function () {
+    var self = this;
+    self.list().then(function (paths) {
+      var zip = new JSZip();
+      var proms = paths.map(function (p) { return self.get(p).then(function (c) { zip.file(p, c); }); });
+      return Promise.all(proms).then(function () { return zip.generateAsync({ type: "blob" }); });
+    }).then(function (blob) {
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "super-project.zip";
+      a.click();
+      notify("ZIP exported", "ok");
+    });
+  };
+  VirtualFS.prototype.importZip = function (file) {
+    var self = this;
+    JSZip.loadAsync(file).then(function (zip) {
+      var proms = [];
+      zip.forEach(function (relPath, entry) {
+        if (!entry.dir) proms.push(entry.async("string").then(function (c) { return self.save(relPath, c); }));
+      });
+      return Promise.all(proms);
+    }).then(function () { renderFileTree(); notify("Project imported", "ok"); });
+  };
+  IDE.fs = new VirtualFS();
+
+  // ========== Helpers ==========
+  function getIconForFile(name) {
+    var ext = (name.split(".").pop() || "").toLowerCase();
+    var map = {
+      js: '<i class="fab fa-js" style="color:#f7df1e"></i>',
+      ts: '<i class="fas fa-code" style="color:#3178c6"></i>',
+      jsx: '<i class="fab fa-react" style="color:#61dafb"></i>',
+      tsx: '<i class="fab fa-react" style="color:#61dafb"></i>',
+      html: '<i class="fab fa-html5" style="color:#e34f26"></i>',
+      css: '<i class="fab fa-css3-alt" style="color:#2965f1"></i>',
+      scss: '<i class="fab fa-sass" style="color:#cc6699"></i>',
+      json: '<i class="fas fa-brackets-curly" style="color:#fac863"></i>',
+      md: '<i class="fab fa-markdown" style="color:#8b949e"></i>',
+      py: '<i class="fab fa-python" style="color:#3572a5"></i>',
+      java: '<i class="fab fa-java" style="color:#b07219"></i>',
+      sh: '<i class="fas fa-terminal" style="color:#4eaa25"></i>',
+      txt: '<i class="fas fa-file-lines" style="color:#8b949e"></i>'
+    };
+    return map[ext] || '<i class="fas fa-file" style="color:#8b949e"></i>';
+  }
+  function getLang(path) {
+    var ext = (path.split(".").pop() || "").toLowerCase();
+    var map = {
+      js: "javascript", ts: "typescript", jsx: "javascript", tsx: "typescript",
+      html: "html", css: "css", scss: "scss", json: "json", md: "markdown",
+      py: "python", java: "java", c: "c", cpp: "cpp", h: "cpp",
+      xml: "xml", yaml: "yaml", yml: "yaml", sh: "shell", bat: "bat",
+      ps1: "powershell", sql: "sql", php: "php", rb: "ruby", rs: "rust", go: "go"
+    };
+    return map[ext] || "plaintext";
+  }
+  function setStatus(text, type) {
+    var el = document.getElementById("statusText");
+    if (el) el.textContent = text;
+    var dot = el && el.previousElementSibling;
+    if (dot) dot.style.background = type === "err" ? "var(--red)" : "var(--green)";
+  }
+  function notify(msg, type) {
+    var n = document.createElement("div");
+    n.className = "notification " + (type || "info");
+    var icon = type === "ok" ? "fa-check" : type === "err" ? "fa-triangle-exclamation" : "fa-info";
+    n.innerHTML = '<i class="fas ' + icon + '"></i> ' + msg;
+    document.body.appendChild(n);
+    setTimeout(function () { n.remove(); }, 2800);
+  }
+  function logOutput(msg, type) {
+    var log = document.getElementById("outputLog");
+    if (!log) return;
+    var line = document.createElement("div");
+    line.className = "log-line " + (type ? "log-" + type : "");
+    line.textContent = "[" + new Date().toLocaleTimeString() + "] " + msg;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  window.superIDE = { notify: notify, logOutput: logOutput, setStatus: setStatus, IDE: IDE };
+
+  // ========== Monaco ==========
+  function initMonaco() {
+    return new Promise(function (resolve) {
+      require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs" } });
+      require(["vs/editor/editor.main"], function () {
+        monaco.editor.defineTheme("superDark", {
+          base: "vs-dark", inherit: true, rules: [],
+          colors: {
+            "editor.background": "#0d1117",
+            "editor.foreground": IDE.editorTextColor,
+            "editorCursor.foreground": "#f9b83a",
+            "editor.lineHighlightBackground": "#161b22",
+            "editorLineNumber.foreground": "#484f58",
+            "editorLineNumber.activeForeground": "#e6edf3",
+            "editor.selectionBackground": "#264f78"
+          }
+        });
+        monaco.editor.defineTheme("superLight", {
+          base: "vs", inherit: true, rules: [],
+          colors: {
+            "editor.background": "#ffffff",
+            "editor.foreground": IDE.theme === "light" ? "#1f2328" : IDE.editorTextColor,
+            "editorCursor.foreground": "#f9b83a",
+            "editor.lineHighlightBackground": "#f6f8fa"
+          }
+        });
+        IDE.editor = monaco.editor.create(document.getElementById("monacoContainer"), {
+          value: "", language: "plaintext",
+          theme: IDE.theme === "dark" ? "superDark" : "superLight",
+          fontSize: IDE.editorFontSize,
+          fontFamily: IDE.editorFontFamily,
+          lineHeight: IDE.lineHeight,
+          automaticLayout: true,
+          minimap: { enabled: IDE.minimap },
+          wordWrap: IDE.wordWrap ? "on" : "off",
+          scrollBeyondLastLine: false,
+          cursorBlinking: "smooth",
+          tabSize: 2, insertSpaces: true, formatOnPaste: true,
+          bracketPairColorization: { enabled: true },
+          guides: { bracketPairs: true }, quickSuggestions: true
+        });
+        IDE.monaco = monaco;
+        IDE.editorReady = true;
+        IDE.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveCurrentFile);
+        IDE.editor.onDidChangeCursorPosition(function (e) {
+          var el = document.getElementById("statusLineText");
+          if (el) el.textContent = "Ln " + e.position.lineNumber + ", Col " + e.position.column;
+        });
+        IDE.editor.onDidChangeModelContent(function () {
+          if (IDE.activeFile) { IDE.dirtyTabs.add(IDE.activeFile); renderTabs(); }
+        });
+        resolve();
+      });
+    });
+  }
+  function saveCurrentFile() {
+    if (!IDE.activeFile || !IDE.editor) return;
+    IDE.fs.save(IDE.activeFile, IDE.editor.getValue()).then(function () {
+      IDE.dirtyTabs.delete(IDE.activeFile);
+      renderTabs();
+      setStatus("Saved: " + IDE.activeFile);
+      logOutput("Saved " + IDE.activeFile, "ok");
+      if (IDE.activeFile.endsWith('.html')) refreshPreview();
+    });
+  }
+
+  // ========== File Tree & Tabs ==========
+  function buildTree(files) {
+    var root = {};
+    files.slice().sort().forEach(function (p) {
+      var parts = p.split("/");
+      var cur = root;
+      parts.forEach(function (part, i) {
+        if (!cur[part]) cur[part] = (i === parts.length - 1) ? { __file: p } : {};
+        if (i < parts.length - 1) cur = cur[part];
+      });
+    });
+    return root;
+  }
+  function renderTreeLevel(obj, basePath, level) {
+    level = level || 0;
+    var html = "";
+    var entries = Object.entries(obj).sort(function (a, b) {
+      var aIsFile = a[1].__file !== undefined;
+      var bIsFile = b[1].__file !== undefined;
+      if (aIsFile !== bIsFile) return aIsFile ? 1 : -1;
+      return a[0].localeCompare(b[0]);
+    });
+    entries.forEach(function (entry) {
+      var name = entry[0];
+      var node = entry[1];
+      var fullPath = basePath ? basePath + "/" + name : name;
+      var isFile = node.__file !== undefined;
+      var pad = (level * 12 + 8) + "px";
+      if (isFile) {
+        var isDirty = IDE.dirtyTabs.has(fullPath);
+        var isActive = IDE.activeFile === fullPath;
+        html += '<div class="tree-item' + (isActive ? " selected" : "") + '" style="padding-left:' + pad + '" onclick="IDE.openFile(\'' + fullPath.replace(/'/g, "\\'") + '\')" oncontextmenu="IDE.ctxFile(event,\'' + fullPath.replace(/'/g, "\\'") + '\')">';
+        html += '<span class="icon">' + getIconForFile(name) + '</span>';
+        html += '<span class="name">' + (isDirty ? "● " : "") + name + "</span>";
+        html += '<span class="item-actions"><button class="icon-btn" onclick="event.stopPropagation();IDE.renameFile(\'' + fullPath.replace(/'/g, "\\'") + '\')" title="Rename"><i class="fas fa-pencil"></i></button>';
+        html += '<button class="icon-btn" onclick="event.stopPropagation();IDE.deleteFile(\'' + fullPath.replace(/'/g, "\\'") + '\')" title="Delete" style="color:var(--red)"><i class="fas fa-trash"></i></button></span>';
+        html += "</div>";
+      } else {
+        var expanded = IDE.fileTreeState.get(fullPath) || false;
+        html += '<div class="tree-item" style="padding-left:' + pad + '" onclick="IDE.toggleFolder(\'' + fullPath.replace(/'/g, "\\'") + '\')" oncontextmenu="IDE.ctxFolder(event,\'' + fullPath.replace(/'/g, "\\'") + '\')">';
+        html += '<span class="arrow' + (expanded ? " open" : "") + '"><i class="fas fa-chevron-right"></i></span>';
+        html += '<span class="icon"><i class="fas ' + (expanded ? "fa-folder-open" : "fa-folder") + '" style="color:#e3a15f"></i></span>';
+        html += '<span class="name">' + name + "</span>";
+        html += "</div>";
+        if (expanded) {
+          html += '<div class="folder-children">' + renderTreeLevel(node, fullPath, level + 1) + "</div>";
+        }
+      }
+    });
+    return html;
+  }
+  function renderFileTree() {
+    return IDE.fs.list().then(function (files) {
+      var tree = buildTree(files);
+      var html = renderTreeLevel(tree, "", 0);
+      var cont = document.getElementById("fileTreeContainer");
+      if (cont) cont.innerHTML = html || '<div style="padding:20px 12px;color:var(--text3);font-size:12px">No files yet</div>';
+      updateWelcomeRecent();
+    });
+  }
+  IDE.toggleFolder = function (path) { IDE.fileTreeState.set(path, !IDE.fileTreeState.get(path)); renderFileTree(); };
+  IDE.openFile = function (path) {
+    if (!IDE.editorReady) { setTimeout(function () { IDE.openFile(path); }, 50); return; }
+    if (IDE.tabs.indexOf(path) === -1) IDE.tabs.push(path);
+    IDE.activeFile = path;
+    renderTabs(); renderFileTree();
+    IDE.fs.get(path).then(function (content) {
+      var lang = getLang(path);
+      var model = IDE.monaco.editor.createModel(content, lang);
+      IDE.editor.setModel(model);
+      document.getElementById("welcomeScreen").style.display = "none";
+      document.getElementById("monacoContainer").style.display = "block";
+      setStatus("Editing: " + path);
+      document.getElementById("statusLangText").textContent = lang;
+      IDE.recentFiles = [path].concat(IDE.recentFiles.filter(function (p) { return p !== path; })).slice(0, 8);
+      localStorage.setItem("ide_recent", JSON.stringify(IDE.recentFiles));
+      updateWelcomeRecent();
+      if (path.endsWith('.html')) { var activePanel = document.querySelector('.panel-tab.active'); if (activePanel && activePanel.dataset.panel === 'preview') refreshPreview(); }
+    });
+  };
+  IDE.deleteFile = function (path) {
+    if (!confirm("Delete \"" + path + "\"?")) return;
+    IDE.fs.del(path).then(function () {
+      IDE.tabs = IDE.tabs.filter(function (t) { return t !== path; });
+      IDE.dirtyTabs.delete(path);
+      if (IDE.activeFile === path) {
+        IDE.activeFile = IDE.tabs[0] || null;
+        if (IDE.activeFile) IDE.openFile(IDE.activeFile);
+        else { IDE.editor.setModel(IDE.monaco.editor.createModel("", "plaintext")); document.getElementById("welcomeScreen").style.display = "flex"; document.getElementById("monacoContainer").style.display = "none"; }
+      }
+      renderTabs(); renderFileTree(); notify("Deleted: " + path, "ok");
+    });
+  };
+  var _renameTarget = null;
+  IDE.renameFile = function (path) {
+    _renameTarget = path;
+    document.getElementById("renameInput").value = path.split("/").pop();
+    document.getElementById("renameModal").classList.add("open");
+    document.getElementById("renameInput").select();
+  };
+  IDE.ctxFile = function (e, path) {
+    e.preventDefault();
+    showCtxMenu(e.clientX, e.clientY, [
+      { icon: "fa-folder-open", label: "Open", action: function () { IDE.openFile(path); } },
+      { icon: "fa-pencil", label: "Rename", action: function () { IDE.renameFile(path); } },
+      { sep: true },
+      { icon: "fa-trash", label: "Delete", danger: true, action: function () { IDE.deleteFile(path); } }
+    ]);
+  };
+  IDE.ctxFolder = function (e, path) {
+    e.preventDefault();
+    showCtxMenu(e.clientX, e.clientY, [
+      { icon: "fa-file-circle-plus", label: "New File Here", action: function () { createFileIn(path); } },
+      { icon: "fa-chevron-down", label: "Expand", action: function () { IDE.fileTreeState.set(path, true); renderFileTree(); } },
+      { icon: "fa-chevron-right", label: "Collapse", action: function () { IDE.fileTreeState.set(path, false); renderFileTree(); } }
+    ]);
+  };
+  function createFileIn(folder) {
+    var name = prompt("File name:");
+    if (!name) return;
+    var full = folder + "/" + name;
+    IDE.fs.save(full, "").then(function () { renderFileTree(); IDE.openFile(full); });
+  }
+  function showCtxMenu(x, y, items) {
+    var menu = document.getElementById("ctxMenu");
+    var html = "";
+    items.forEach(function (item) {
+      if (item.sep) html += '<div class="ctx-sep"></div>';
+      else html += '<div class="ctx-item' + (item.danger ? " danger" : "") + '" onclick="window._ctxAction(' + items.indexOf(item) + ')"><span class="ctx-icon"><i class="fas ' + item.icon + '"></i></span>' + item.label + "</div>";
+    });
+    menu._actions = items;
+    menu.innerHTML = html;
+    menu.style.cssText = "display:block;left:" + x + "px;top:" + y + "px";
+    menu.querySelectorAll(".ctx-item").forEach(function (el, i) {
+      var action = items.filter(function (it) { return !it.sep; })[i];
+      if (action) el.onclick = function () { action.action(); menu.style.display = "none"; };
+    });
+  }
+  window._ctxAction = function () {};
+  function renderTabs() {
+    var bar = document.getElementById("tabsBar");
+    if (!bar) return;
+    var html = "";
+    IDE.tabs.forEach(function (p) {
+      var name = p.split("/").pop();
+      var isActive = p === IDE.activeFile;
+      var isDirty = IDE.dirtyTabs.has(p);
+      html += '<div class="tab' + (isActive ? " active" : "") + (isDirty ? " dirty" : "") + '" onclick="IDE.openFile(\'' + p.replace(/'/g, "\\'") + '\')">';
+      html += '<span class="tab-icon">' + getIconForFile(name) + "</span>" + name;
+      html += '<button class="tab-close" onclick="event.stopPropagation();IDE.closeTab(\'' + p.replace(/'/g, "\\'") + '\')"><i class="fas fa-xmark"></i></button></div>';
+    });
+    bar.innerHTML = html;
+  }
+  IDE.closeTab = function (path) {
+    if (IDE.dirtyTabs.has(path) && !confirm("\"" + path + "\" has unsaved changes. Close anyway?")) return;
+    IDE.tabs = IDE.tabs.filter(function (t) { return t !== path; });
+    IDE.dirtyTabs.delete(path);
+    if (IDE.activeFile === path) {
+      IDE.activeFile = IDE.tabs[IDE.tabs.length - 1] || null;
+      if (IDE.activeFile) IDE.openFile(IDE.activeFile);
+      else { IDE.editor.setModel(IDE.monaco.editor.createModel("", "plaintext")); document.getElementById("welcomeScreen").style.display = "flex"; document.getElementById("monacoContainer").style.display = "none"; }
+    }
+    renderTabs();
+  };
+  function updateWelcomeRecent() {
+    var cont = document.getElementById("welcomeRecent");
+    if (!cont || !IDE.recentFiles.length) return;
+    var html = "<h4>Recent Files</h4>";
+    IDE.recentFiles.forEach(function (f) {
+      html += '<div class="recent-item" onclick="IDE.openFile(\'' + f.replace(/'/g, "\\'") + '\')">' + getIconForFile(f) + "&nbsp;" + f + "</div>";
+    });
+    cont.innerHTML = html;
+  }
+
+  // ========== AI & Agent ==========
+  function buildSystemPrompt() {
+    var lines = [
+      "You are SUPER IDE, an expert AI coding assistant.",
+      "You have full access to the user's virtual filesystem via commands.",
+      "Use /files, /read, /write, /delete, /newfolder, /commit, /revert when appropriate.",
+      "Always respond with well-formatted Markdown.",
+      "When proposing code, use ```lang:filename ... ```"
+    ];
+    if (IDE.includeFile && IDE.activeFile) {
+      lines.push("Current file: " + IDE.activeFile);
+      var content = IDE.editor ? IDE.editor.getValue() : "";
+      if (content) lines.push("File content:\n```\n" + content.slice(0, 6000) + "\n```");
+    }
+    return lines.join("\n");
+  }
+  function handleAgentCommand(msg) {
+    var cmd = msg.trim().split(/\s+/)[0].toLowerCase();
+    var rest = msg.substring(cmd.length).trim();
+    var file = rest.split(/\s+/)[0];
+    var content = rest.substring(file.length).trim();
+    if (cmd === '/files') {
+      return IDE.fs.list().then(files => 'Files:\n```\n' + files.join('\n') + '\n```');
+    } else if (cmd === '/read') {
+      if (!file) return Promise.resolve('Usage: /read <file>');
+      return IDE.fs.get(file).then(c => c ? '```\n' + c + '\n```' : 'File not found');
+    } else if (cmd === '/write' || cmd === '/create') {
+      if (!file || !content) return Promise.resolve('Usage: /write <file> <content>');
+      return IDE.fs.save(file, content).then(() => { renderFileTree(); if (IDE.activeFile===file) IDE.openFile(file); return 'File written: ' + file; });
+    } else if (cmd === '/delete') {
+      if (!file) return Promise.resolve('Usage: /delete <file>');
+      return IDE.fs.del(file).then(() => { renderFileTree(); if (IDE.activeFile===file) { IDE.activeFile=null; document.getElementById('welcomeScreen').style.display='flex'; } return 'Deleted: '+file; });
+    } else if (cmd === '/newfolder') {
+      if (!file) return Promise.resolve('Usage: /newfolder <name>');
+      return IDE.fs.save(file+'/.gitkeep', '').then(() => { renderFileTree(); return 'Folder created: '+file; });
+    } else if (cmd === '/commit') {
+      var msgContent = rest;
+      if (!msgContent) return Promise.resolve('Usage: /commit <message>');
+      return getFileStatus().then(statuses => {
+        var commitFiles = {};
+        var proms = statuses.map(s => {
+          if (s.status !== 'deleted') return IDE.fs.get(s.path).then(c => { commitFiles[s.path] = c; });
+          else { commitFiles[s.path] = null; return Promise.resolve(); }
+        });
+        return Promise.all(proms).then(() => {
+          IDE.scm.commits.unshift({ message: msgContent, timestamp: Date.now(), files: commitFiles });
+          if (IDE.scm.commits.length > 20) IDE.scm.commits.pop();
+          localStorage.setItem('ide_commits', JSON.stringify(IDE.scm.commits));
+          renderSCM();
+          return 'Committed: ' + msgContent;
+        });
+      });
+    } else if (cmd === '/revert') {
+      var lastCommit = IDE.scm.commits[0];
+      if (!lastCommit) return Promise.resolve('No commits to revert.');
+      if (!confirm('Revert all changes?')) return Promise.resolve('Cancelled.');
+      var proms = [];
+      Object.entries(lastCommit.files).forEach(([path, content]) => {
+        if (content===null) proms.push(IDE.fs.del(path));
+        else proms.push(IDE.fs.save(path, content));
+      });
+      return Promise.all(proms).then(() => { renderFileTree(); if (IDE.activeFile) IDE.openFile(IDE.activeFile); renderSCM(); return 'Reverted.'; });
+    }
+    return null;
+  }
+  function sendChat(msg) {
+    var agentResult = handleAgentCommand(msg);
+    if (agentResult) {
+      addChatMsg('user', msg);
+      var assistantDiv = addChatMsg('assistant', null);
+      if (typeof agentResult.then === 'function') {
+        agentResult.then(response => { assistantDiv.innerHTML = marked.parse(response); }).catch(err => { assistantDiv.innerHTML = marked.parse("**Error:** " + err.message); });
+      } else {
+        assistantDiv.innerHTML = marked.parse(agentResult);
+      }
+      return;
+    }
+    if (IDE.isStreaming || !msg.trim()) return;
+    IDE.isStreaming = true;
+    document.getElementById("sendBtn").disabled = true;
+    addChatMsg("user", msg);
+    var assistantDiv = addChatMsg("assistant", null);
+    var full = "";
+    var key = IDE.apiKeys.openrouter || IDE.apiKey;
+    if (!key) { assistantDiv.innerHTML = marked.parse("**Error:** API key not set."); IDE.isStreaming = false; return; }
+    fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: IDE.model, messages: [{ role: "system", content: buildSystemPrompt() }, { role: "user", content: msg }], stream: true })
+    }).then(res => {
+      var reader = res.body.getReader();
+      var decoder = new TextDecoder();
+      function read() {
+        reader.read().then(({done, value}) => {
+          if (done) { IDE.isStreaming = false; document.getElementById("sendBtn").disabled = false; return; }
+          var chunk = decoder.decode(value);
+          var lines = chunk.split("\n");
+          lines.forEach(line => {
+            if (line.startsWith("data: ")) {
+              var data = line.slice(6);
+              if (data === "[DONE]") return;
+              try {
+                var json = JSON.parse(data);
+                var text = json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content;
+                if (text) { full += text; assistantDiv.innerHTML = marked.parse(full); }
+              } catch (e) {}
+            }
+          });
+          read();
+        });
+      }
+      read();
+    }).catch(err => { assistantDiv.innerHTML = marked.parse("**Error:** " + err.message); IDE.isStreaming = false; });
+  }
+  function addChatMsg(role, content) {
+    var container = document.getElementById("chatMessages");
+    var msg = document.createElement("div");
+    msg.className = "chat-msg " + role;
+    var bubble = document.createElement("div");
+    bubble.className = "bubble";
+    if (role === "assistant" && content === null) {
+      bubble.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+    } else {
+      bubble.innerHTML = content ? (role==="assistant" ? marked.parse(content) : content) : "";
+    }
+    msg.appendChild(bubble);
+    container.appendChild(msg);
+    container.scrollTop = container.scrollHeight;
+    return bubble;
+  }
+
+  // ========== Terminal ==========
+  function updateTerminalTheme() {
+    if (!IDE.terminal) return;
+    IDE.terminal.options.theme = IDE.theme === "light" ? {
+      background: "#ffffff", foreground: "#1f2328", cursor: "#f9b83a"
+    } : {
+      background: "#0d1117", foreground: "#e6edf3", cursor: "#f9b83a"
+    };
+  }
+  function initTerminal() {
+    if (IDE.terminal) return;
+    IDE.terminal = new Terminal({ cursorBlink: true, fontSize: 13, fontFamily: "JetBrains Mono", theme: { background: "#0d1117", foreground: "#e6edf3" } });
+    IDE.fitAddon = new FitAddon.FitAddon();
+    IDE.terminal.loadAddon(IDE.fitAddon);
+    IDE.terminal.open(document.getElementById("terminalContainer"));
+    IDE.fitAddon.fit();
+    IDE.terminal.writeln("\x1b[1;33mSUPER IDE Terminal\x1b[0m \x1b[2m(type \x1b[0mhelp\x1b[2m)\x1b[0m");
+    IDE.terminal.write("\x1b[32m$\x1b[0m ");
+    var cmd = "";
+    IDE.terminal.onData(function (e) {
+      if (e === "\r") { IDE.terminal.writeln(""); runTermCmd(cmd.trim()); cmd = ""; IDE.terminal.write("\x1b[32m$\x1b[0m "); }
+      else if (e === "\u007f") { if (cmd.length) { cmd = cmd.slice(0, -1); IDE.terminal.write("\b \b"); } }
+      else if (e.charCodeAt(0) >= 32) { cmd += e; IDE.terminal.write(e); }
+    });
+  }
+  function runTermCmd(cmd) {
+    if (!cmd) return;
+    var parts = cmd.split(" ");
+    var op = parts[0], arg = parts.slice(1).join(" ");
+    if (op === "help") {
+      IDE.terminal.writeln("  ls, cat <file>, new <file>, rm <file>, clear, date, python <file>");
+    } else if (op === "ls") {
+      IDE.fs.list().then(files => files.forEach(f => IDE.terminal.writeln("  " + f)));
+    } else if (op === "cat") {
+      if (!arg) return IDE.terminal.writeln("Usage: cat <file>");
+      IDE.fs.get(arg).then(c => { if (c) c.split("\n").forEach(l => IDE.terminal.writeln(l)); else IDE.terminal.writeln("File not found"); });
+    } else if (op === "new" || op === "touch") {
+      if (!arg) return IDE.terminal.writeln("Usage: new <file>");
+      IDE.fs.save(arg, "").then(() => { renderFileTree(); IDE.terminal.writeln("Created: " + arg); });
+    } else if (op === "rm") {
+      if (!arg) return IDE.terminal.writeln("Usage: rm <file>");
+      IDE.fs.del(arg).then(() => { renderFileTree(); IDE.terminal.writeln("Deleted: " + arg); });
+    } else if (op === "python") {
+      if (!arg) return IDE.terminal.writeln("Usage: python <file>");
+      IDE.fs.get(arg).then(content => {
+        if (!content) return IDE.terminal.writeln("File not found: " + arg);
+        IDE.terminal.writeln("Running " + arg + "...");
+        try {
+          var output = [];
+          var _print = function() { output.push(Array.from(arguments).join(' ')); };
+          var fn = new Function('print', content);
+          fn(_print);
+          if (output.length > 0) {
+            output.forEach(l => IDE.terminal.writeln(l));
+          } else {
+            IDE.terminal.writeln("(Program ran but produced no output)");
+          }
+          logOutput("Python output for " + arg + ": " + (output.join('; ') || 'no output'), 'ok');
+        } catch (e) {
+          IDE.terminal.writeln("\x1b[31mError: " + e.message + "\x1b[0m");
+          logOutput("Python error in " + arg + ": " + e.message, 'err');
+        }
+      });
+    } else if (op === "clear") { IDE.terminal.clear(); }
+    else if (op === "date") { IDE.terminal.writeln(new Date().toString()); }
+    else { IDE.terminal.writeln(op + ": command not found"); }
+  }
+
+  // ========== Preview ==========
+  function refreshPreview() {
+    var iframe = document.getElementById("previewFrame");
+    if (!iframe) return;
+    var htmlPath = (IDE.activeFile && IDE.activeFile.endsWith(".html")) ? IDE.activeFile : "index.html";
+    IDE.fs.get(htmlPath).then(content => {
+      iframe.srcdoc = content || "<html><body>No content</body></html>";
+    });
+  }
+  function openPreviewExternal() {
+    var htmlPath = (IDE.activeFile && IDE.activeFile.endsWith(".html")) ? IDE.activeFile : "index.html";
+    IDE.fs.get(htmlPath).then(content => {
+      var wnd = window.open("", "_blank");
+      wnd.document.write(content);
+      wnd.document.close();
+    });
+  }
+
+  // ========== SCM ==========
+  function getFileStatus() {
+    var lastCommit = IDE.scm.commits[0];
+    if (!lastCommit) return Promise.resolve([]);
+    return IDE.fs.list().then(files => {
+      var statuses = [];
+      var proms = files.map(path => IDE.fs.get(path).then(content => {
+        var old = lastCommit.files[path];
+        if (old === undefined) statuses.push({ path, status: 'added' });
+        else if (old !== content) statuses.push({ path, status: 'modified' });
+      }));
+      return Promise.all(proms).then(() => {
+        Object.keys(lastCommit.files).forEach(path => { if (!files.includes(path)) statuses.push({ path, status: 'deleted' }); });
+        return statuses;
+      });
+    });
+  }
+  function renderSCM() {
+    getFileStatus().then(statuses => {
+      var listEl = document.getElementById('scmFileList');
+      listEl.innerHTML = statuses.map(s => `<li class="scm-file-item"><span class="status ${s.status}">${s.status==='modified'?'●':s.status==='added'?'+':'-'}</span><span class="file-path">${s.path}</span></li>`).join('') || '<li style="color:var(--text3)">No changes</li>';
+      document.getElementById('commitsList').innerHTML = IDE.scm.commits.slice(0,5).map(c => `<li class="scm-file-item" style="justify-content:space-between"><span>${c.message}</span><small>${new Date(c.timestamp).toLocaleString()}</small></li>`).join('') || '<li style="color:var(--text3)">No commits</li>';
+    });
+  }
+  function commitAll() {
+    var msg = document.getElementById('commitMessageInput').value.trim();
+    if (!msg) return notify('Commit message required', 'err');
+    getFileStatus().then(statuses => {
+      var commitFiles = {};
+      var proms = statuses.map(s => {
+        if (s.status !== 'deleted') return IDE.fs.get(s.path).then(c => { commitFiles[s.path] = c; });
+        else { commitFiles[s.path] = null; return Promise.resolve(); }
+      });
+      Promise.all(proms).then(() => {
+        IDE.scm.commits.unshift({ message: msg, timestamp: Date.now(), files: commitFiles });
+        if (IDE.scm.commits.length > 20) IDE.scm.commits.pop();
+        localStorage.setItem('ide_commits', JSON.stringify(IDE.scm.commits));
+        renderSCM();
+        notify('Committed', 'ok');
+        document.getElementById('commitMessageInput').value = '';
+      });
+    });
+  }
+  function revertAll() {
+    var lastCommit = IDE.scm.commits[0];
+    if (!lastCommit) return notify('No commits', 'err');
+    if (!confirm('Revert all?')) return;
+    var proms = Object.entries(lastCommit.files).map(([path, content]) => content === null ? IDE.fs.del(path) : IDE.fs.save(path, content));
+    Promise.all(proms).then(() => { renderFileTree(); if (IDE.activeFile) IDE.openFile(IDE.activeFile); renderSCM(); notify('Reverted', 'ok'); });
+  }
+
+  // ========== Extensions ==========
+  function loadExtensions() {
+    var stored = localStorage.getItem('ide_extensions');
+    if (stored) JSON.parse(stored).forEach(ext => IDE.extensions.set(ext.id, { package: ext.pkg, enabled: ext.enabled, files: ext.files || {} }));
+  }
+  function saveExtensions() {
+    var arr = [];
+    IDE.extensions.forEach((val, id) => arr.push({ id, pkg: val.package, enabled: val.enabled, files: val.files }));
+    localStorage.setItem('ide_extensions', JSON.stringify(arr));
+  }
+  async function installExtension(zipFile) {
+    var zip = await JSZip.loadAsync(zipFile);
+    var pkgFile = zip.file('package.json');
+    if (!pkgFile) throw new Error('package.json not found');
+    var pkg = JSON.parse(await pkgFile.async('string'));
+    var extId = pkg.name;
+    var extData = { id: extId, package: pkg, enabled: true, files: {} };
+    var proms = [];
+    zip.forEach((path, file) => { if (!file.dir) proms.push(file.async('string').then(c => { extData.files[path] = c; })); });
+    await Promise.all(proms);
+    IDE.extensions.set(extId, extData);
+    saveExtensions();
+    if (extData.enabled) activateExtension(extId);
+    renderExtensionsUI();
+    notify('Extension installed: ' + pkg.displayName, 'ok');
+  }
+  function activateExtension(id) {
+    var ext = IDE.extensions.get(id);
+    if (!ext || !ext.enabled) return;
+    if (ext.files['src/style.css']) {
+      var style = document.createElement('style');
+      style.id = 'ext-style-' + id;
+      style.textContent = ext.files['src/style.css'];
+      document.head.appendChild(style);
+    }
+    if (ext.files['src/main.js']) {
+      var script = document.createElement('script');
+      script.id = 'ext-script-' + id;
+      script.textContent = '(function(){ var notify = window.superIDE.notify; var logOutput = window.superIDE.logOutput; var setStatus = window.superIDE.setStatus; var IDE = window.superIDE.IDE; ' + ext.files['src/main.js'] + ' })();';
+      document.body.appendChild(script);
+    }
+  }
+  function deactivateExtension(id) {
+    var ext = IDE.extensions.get(id);
+    if (!ext) return;
+    ext.enabled = false;
+    saveExtensions();
+    var style = document.getElementById('ext-style-' + id); if (style) style.remove();
+    var script = document.getElementById('ext-script-' + id); if (script) script.remove();
+    renderExtensionsUI();
+  }
+  IDE.toggleExtension = function (id) {
+    var ext = IDE.extensions.get(id);
+    if (!ext) return;
+    ext.enabled = !ext.enabled;
+    saveExtensions();
+    if (ext.enabled) activateExtension(id); else deactivateExtension(id);
+    renderExtensionsUI();
+  };
+  function renderExtensionsUI() {
+    var container = document.getElementById('extensionsListSidebar');
+    if (!container) return;
+    var html = '';
+    IDE.extensions.forEach((ext, id) => {
+      html += `<div class="ext-item"><div style="flex:1"><strong>${ext.package.displayName||id}</strong><p>${ext.package.description||''}</p></div><button class="btn ${ext.enabled?'danger':''}" onclick="IDE.toggleExtension('${id}')">${ext.enabled?'Disable':'Enable'}</button></div>`;
+    });
+    container.innerHTML = html || '<p style="padding:12px">No extensions installed.</p>';
+  }
+  IDE.installExtensionPrompt = function () {
+    var inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.zip,.superide-ext';
+    inp.onchange = function (e) { if (e.target.files[0]) installExtension(e.target.files[0]); };
+    inp.click();
+  };
+  function installDemoExtension() {
+    var zip = new JSZip();
+    zip.file("package.json", JSON.stringify({
+      name: "demo-extension",
+      displayName: "Demo Extension",
+      description: "A sample extension that tints the editor background",
+      version: "1.0.0"
+    }));
+    zip.file("icon.png", "");
+    zip.file("src/style.css", `
+      .monaco-editor .view-lines {
+        background-color: rgba(255,255,0,0.05) !important;
+      }
+    `);
+    zip.file("src/main.js", `
+      notify('Demo extension activated!', 'info');
+    `);
+    zip.generateAsync({ type: "blob" }).then(function(blob) {
+      return installExtension(blob);
+    }).then(() => {
+      notify('Demo extension installed! Check the editor background.', 'ok');
+    });
+  }
+
+  // ========== Menu & Shortcuts (defined before COMMANDS) ==========
+  IDE.newFile = function () { var name = prompt("File name:"); if (name) { IDE.fs.save(name, "").then(renderFileTree); IDE.openFile(name); } };
+  IDE.newFolder = function () { var name = prompt("Folder name:"); if (name) { IDE.fs.save(name+"/.gitkeep", "").then(renderFileTree); } };
+  IDE.saveFile = saveCurrentFile;
+  IDE.save = saveCurrentFile;
+  IDE.exportZip = function () { IDE.fs.exportZip(); };
+  IDE.importZip = function () {
+    var inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.zip';
+    inp.onchange = function (e) { if (e.target.files[0]) IDE.fs.importZip(e.target.files[0]); };
+    inp.click();
+  };
+  IDE.undo = function () { IDE.editor && IDE.editor.trigger('keyboard', 'undo', null); };
+  IDE.redo = function () { IDE.editor && IDE.editor.trigger('keyboard', 'redo', null); };
+  IDE.toggleTheme = function () {
+    IDE.theme = IDE.theme === "dark" ? "light" : "dark";
+    document.body.classList.toggle("light", IDE.theme === "light");
+    localStorage.setItem("ide_theme", IDE.theme);
+    if (IDE.editor) IDE.editor.updateOptions({ theme: IDE.theme === "dark" ? "superDark" : "superLight" });
+    updateTerminalTheme();
+    document.getElementById("themeSelect").value = IDE.theme;
+  };
+  IDE.toggleMinimap = function () { IDE.minimap = !IDE.minimap; IDE.editor.updateOptions({ minimap: { enabled: IDE.minimap } }); localStorage.setItem("ide_minimap", IDE.minimap); };
+  IDE.toggleWordWrap = function () { IDE.wordWrap = !IDE.wordWrap; IDE.editor.updateOptions({ wordWrap: IDE.wordWrap?"on":"off" }); localStorage.setItem("ide_wordWrap", IDE.wordWrap); };
+  IDE.togglePanel = function () {
+    IDE.panelVisible = !IDE.panelVisible;
+    document.getElementById('bottomPanel').style.display = IDE.panelVisible ? "" : "none";
+    if (IDE.editor) IDE.editor.layout();
+    if (IDE.fitAddon && IDE.panelVisible) setTimeout(() => IDE.fitAddon.fit(), 50);
+  };
+  IDE.showWelcome = function () { document.getElementById("welcomeScreen").style.display = "flex"; document.getElementById("monacoContainer").style.display = "none"; };
+
+  // ========== COMMAND PALETTE (moved after definitions) ==========
+  var COMMANDS = [
+    { icon: "fa-file-circle-plus", label: "New File", kbd: "Ctrl+N", section: "File", action: function() { IDE.newFile(); } },
+    { icon: "fa-floppy-disk", label: "Save", kbd: "Ctrl+S", section: "File", action: function() { IDE.saveFile(); } },
+    { icon: "fa-download", label: "Export ZIP", section: "File", action: function() { IDE.exportZip(); } },
+    { icon: "fa-folder-open", label: "Import ZIP", section: "File", action: function() { IDE.importZip(); } },
+    { icon: "fa-circle-half-stroke", label: "Toggle Light/Dark Theme", section: "View", action: function() { IDE.toggleTheme(); } },
+    { icon: "fa-map", label: "Toggle Minimap", section: "View", action: function() { IDE.toggleMinimap(); } },
+    { icon: "fa-text-width", label: "Toggle Word Wrap", kbd: "Alt+Z", section: "View", action: function() { IDE.toggleWordWrap(); } },
+    { icon: "fa-terminal", label: "Toggle Terminal Panel", section: "View", action: function() { IDE.togglePanel(); } },
+    { icon: "fa-gear", label: "Open Settings", kbd: "Ctrl+,", section: "Settings", action: function() { document.getElementById('settingsModal').classList.add('open'); } },
+    { icon: "fa-eraser", label: "Clear Chat History", section: "AI", action: function() { document.getElementById('chatMessages').innerHTML = ''; } },
+    { icon: "fa-eye", label: "AI: Review Current File", section: "AI", action: function() {
+      if (!IDE.activeFile) return notify("No file open");
+      sendChat("Review this file:\n```\n" + IDE.editor.getValue() + "\n```");
+    }},
+    { icon: "fa-lightbulb", label: "AI: Explain Selected Code", section: "AI", action: function() {
+      var sel = IDE.editor ? IDE.editor.getModel().getValueInRange(IDE.editor.getSelection()) : "";
+      if (!sel.trim()) return notify("Select code first");
+      sendChat("Explain:\n```\n" + sel + "\n```");
+    }},
+    { icon: "fa-code-branch", label: "Source Control: Commit All", section: "SCM", action: function() { commitAll(); } },
+    { icon: "fa-undo", label: "Source Control: Revert All", section: "SCM", action: function() { revertAll(); } }
+  ];
+
+  function openCmdPalette() {
+    document.getElementById("cmdModal").classList.add("open");
+    document.getElementById("cmdInput").value = "";
+    filterCmds("");
+    document.getElementById("cmdInput").focus();
+  }
+  function filterCmds(query) {
+    var q = query.toLowerCase();
+    var filtered = q ? COMMANDS.filter(function (c) { return c.label.toLowerCase().includes(q); }) : COMMANDS;
+    var html = "";
+    var lastSection = "";
+    filtered.forEach(function (c) {
+      if (c.section !== lastSection) {
+        html += '<div class="cmd-section">' + c.section + "</div>";
+        lastSection = c.section;
+      }
+      html += '<div class="cmd-item" data-idx="' + COMMANDS.indexOf(c) + '">';
+      html += '<i class="fas ' + c.icon + ' cmd-icon2"></i>';
+      html += '<span>' + c.label + "</span>";
+      if (c.kbd) html += '<span class="cmd-kbd">' + c.kbd + "</span>";
+      html += "</div>";
+    });
+    document.getElementById("cmdList").innerHTML = html || '<div style="padding:12px 16px;color:var(--text3)">No commands found</div>';
+    document.querySelectorAll("#cmdList .cmd-item").forEach(function (el) {
+      el.onclick = function () {
+        var idx = parseInt(el.getAttribute("data-idx"));
+        document.getElementById("cmdModal").classList.remove("open");
+        COMMANDS[idx].action();
+      };
+    });
+  }
+
+  // ========== Init ==========
+  function init() {
+    document.body.classList.toggle("light", IDE.theme === "light");
+    applySidebarPosition();
+    function positionDropdowns() {
+      document.querySelectorAll('.menu-item').forEach(item => {
+        var dropdown = item.querySelector('.menu-dropdown');
+        if (dropdown) {
+          var rect = item.getBoundingClientRect();
+          dropdown.style.left = rect.left + 'px';
+          dropdown.style.top = rect.bottom + 'px';
+        }
+      });
+    }
+    window.addEventListener('resize', positionDropdowns);
+    document.getElementById('menuBar').addEventListener('click', function(e) {
+      // IMPORTANT: check dropdown-item FIRST before checking parent menu-item
+      var dropdownItem = e.target.closest('.menu-dropdown-item');
+      if (dropdownItem) {
+        e.stopPropagation();
+        var action = dropdownItem.getAttribute('data-action');
+        if (action) {
+          if (typeof IDE[action] === 'function') IDE[action]();
+          else if (action === 'save') saveCurrentFile();
+          else if (action === 'togglePanel') IDE.togglePanel();
+        }
+        document.querySelectorAll('.menu-item.open').forEach(m => m.classList.remove('open'));
+        return;
+      }
+      var menuItem = e.target.closest('.menu-item');
+      if (menuItem && menuItem.hasAttribute('data-menu')) {
+        e.stopPropagation();
+        document.querySelectorAll('.menu-item.open').forEach(m => { if (m !== menuItem) m.classList.remove('open'); });
+        menuItem.classList.toggle('open');
+        if (menuItem.classList.contains('open')) positionDropdowns();
+      }
+    });
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.menu-bar')) {
+        document.querySelectorAll('.menu-item.open').forEach(m => m.classList.remove('open'));
+      }
+    });
+    IDE.fs.ready.then(function() { return IDE.fs.list(); }).then(function (files) {
+      if (!files.length) {
+        return Promise.all([
+          IDE.fs.save("index.html", "<!DOCTYPE html>\n<html><head><meta charset='UTF-8'><title>Hello</title></head><body><h1>SUPER IDE</h1></body></html>"),
+          IDE.fs.save("style.css", "body { font-family: sans-serif; background: #0d1117; color: #e6edf3; padding: 2rem; }"),
+          IDE.fs.save("app.js", "console.log('AI ready');")
+        ]);
+      }
+    }).then(function () { return initMonaco(); }).then(function () {
+      renderFileTree();
+      initTerminal();
+      loadExtensions();
+      IDE.extensions.forEach((ext, id) => { if (ext.enabled) activateExtension(id); });
+      initResize(document.getElementById("sidebarResizeH"), document.getElementById("mainSidebar"), IDE.sidebarPosition === 'right', '--sidebar-w');
+      initResize(document.getElementById("chatResizeH"), document.getElementById("chatPanel"), false, '--chat-w', true); // invert direction
+      bindUI();
+      setStatus("SUPER IDE ready");
+      logOutput("SUPER IDE initialized", "ok");
+      fetchOpenRouterModels();
+      renderSCM();
+    }).catch(function (err) {
+      console.error("Init error:", err);
+      notify("Failed to initialize: " + err.message, "err");
+    });
+  }
+  function initResize(handle, panel, isRight, cssVar, invert) {
+    var startX, startW;
+    handle.addEventListener("mousedown", function (e) {
+      e.preventDefault();
+      startX = e.clientX; startW = panel.offsetWidth;
+      handle.classList.add("dragging");
+      document.body.style.cursor = "ew-resize";
+      function onMove(e) {
+        var dx = e.clientX - startX;
+        var newW;
+        if (invert) {
+          // invert direction: dragging left increases width, dragging right decreases
+          if (isRight) {
+            newW = Math.max(180, Math.min(520, startW + dx));
+          } else {
+            newW = Math.max(180, Math.min(520, startW - dx));
+          }
+        } else {
+          if (isRight) {
+            newW = Math.max(180, Math.min(520, startW - dx));
+          } else {
+            newW = Math.max(180, Math.min(520, startW + dx));
+          }
+        }
+        panel.style.width = newW + "px";
+        document.documentElement.style.setProperty(cssVar, newW + "px");
+        if (IDE.editor) IDE.editor.layout();
+        if (IDE.fitAddon && IDE.panelVisible) IDE.fitAddon.fit();
+      }
+      function onUp() { document.body.style.cursor = ""; handle.classList.remove("dragging"); window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); }
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    });
+  }
+  async function fetchOpenRouterModels() {
+    var key = IDE.apiKeys.openrouter || IDE.apiKey;
+    if (!key) return;
+    try {
+      var res = await fetch("https://openrouter.ai/api/v1/models", { headers: { Authorization: "Bearer " + key } });
+      if (!res.ok) return;
+      var data = await res.json();
+      var select = document.getElementById("modelSelect");
+      select.innerHTML = "";
+      data.data.forEach(m => { var opt = document.createElement("option"); opt.value = m.id; opt.textContent = m.name + " (" + m.id + ")"; select.appendChild(opt); });
+      select.value = IDE.model;
+    } catch (e) {}
+  }
+  function bindUI() {
+    function switchSidebar(view) {
+      ['explorer','search','scm','extensions'].forEach(v => document.getElementById(v+'Section').style.display = 'none');
+      document.getElementById(view+'Section').style.display = 'flex';
+      document.querySelectorAll('.act-btn[data-view]').forEach(b => b.classList.remove('active'));
+      var btn = document.querySelector(`.act-btn[data-view="${view}"]`);
+      if (btn) btn.classList.add('active');
+      if (view === 'extensions') renderExtensionsUI();
+      if (view === 'scm') renderSCM();
+    }
+    document.querySelectorAll('.act-btn[data-view]').forEach(btn => {
+      btn.addEventListener('click', function() { switchSidebar(this.getAttribute('data-view')); });
+    });
+    document.getElementById('actSettings').onclick = () => document.getElementById('settingsModal').classList.add('open');
+    document.getElementById('actTheme').onclick = IDE.toggleTheme;
+    document.getElementById('newFileBtn').onclick = IDE.newFile;
+    document.getElementById('newFolderBtn').onclick = IDE.newFolder;
+    document.getElementById('collapseAllBtn').onclick = () => { IDE.fileTreeState.forEach((v,k)=>IDE.fileTreeState.set(k,false)); renderFileTree(); };
+    document.getElementById('wNewFile').onclick = IDE.newFile;
+    document.getElementById('wImport').onclick = IDE.importZip;
+    document.getElementById('exportZipBtn').onclick = IDE.exportZip;
+    document.querySelectorAll(".panel-tab[data-panel]").forEach(tab => {
+      tab.addEventListener('click', function () {
+        document.querySelectorAll(".panel-tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".panel-section").forEach(s => s.classList.remove("active"));
+        this.classList.add("active");
+        var sec = document.getElementById(this.getAttribute("data-panel") + "Section");
+        if (sec) sec.classList.add("active");
+        if (this.dataset.panel === "terminal" && IDE.fitAddon) setTimeout(() => IDE.fitAddon.fit(), 30);
+        if (this.dataset.panel === "preview") refreshPreview();
+      });
+    });
+    document.getElementById('togglePanelBtn').onclick = IDE.togglePanel;
+    document.getElementById('clearPanelBtn').onclick = function () { if (IDE.terminal) IDE.terminal.clear(); document.getElementById("outputLog").innerHTML = ""; };
+    document.getElementById('openPreviewExternalBtn').onclick = openPreviewExternal;
+    document.getElementById('refreshSCMBtn').onclick = renderSCM;
+    document.getElementById('commitAllBtn').onclick = commitAll;
+    document.getElementById('revertAllBtn').onclick = revertAll;
+    document.getElementById('installExtBtnSidebar').onclick = IDE.installExtensionPrompt;
+    document.getElementById('refreshExtensionsBtn').onclick = renderExtensionsUI;
+    document.getElementById('demoExtBtn').onclick = installDemoExtension;
+    document.getElementById('sendBtn').onclick = function () { var inp = document.getElementById("chatInput"); sendChat(inp.value); inp.value = ""; };
+    document.getElementById("chatInput").addEventListener("keydown", function (e) { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); document.getElementById("sendBtn").click(); } });
+    document.getElementById("includeFileBtn").onclick = function () { IDE.includeFile = !IDE.includeFile; this.classList.toggle("active", IDE.includeFile); };
+    document.getElementById("reviewBtn").onclick = function () {
+      if (!IDE.activeFile) return notify("No file open");
+      sendChat("Review this file:\n```\n" + IDE.editor.getValue() + "\n```");
+    };
+    document.getElementById("explainBtn").onclick = function () {
+      var sel = IDE.editor ? IDE.editor.getModel().getValueInRange(IDE.editor.getSelection()) : "";
+      if (!sel.trim()) return notify("Select code first");
+      sendChat("Explain:\n```\n" + sel + "\n```");
+    };
+    document.getElementById("clearChatBtn").onclick = function () { document.getElementById("chatMessages").innerHTML = ''; };
+    document.getElementById("saveSettingsBtn").onclick = function () {
+      IDE.apiKeys.openrouter = document.getElementById("apiKeyInput").value.trim();
+      IDE.apiKeys.openai = document.getElementById("openaiKeyInput").value.trim();
+      IDE.apiKeys.claude = document.getElementById("claudeKeyInput").value.trim();
+      IDE.apiKeys.gemini = document.getElementById("geminiKeyInput").value.trim();
+      IDE.apiKeys.deepseek = document.getElementById("deepseekKeyInput").value.trim();
+      IDE.theme = document.getElementById("themeSelect").value;
+      IDE.sidebarPosition = document.getElementById("sidebarPositionSelect").value;
+      IDE.fontSize = parseInt(document.getElementById("fontSizeRange").value);
+      IDE.wordWrap = document.getElementById("wordWrapChk").checked;
+      IDE.minimap = document.getElementById("minimapChk").checked;
+      IDE.editorFontFamily = document.getElementById("editorFontFamily").value;
+      IDE.editorFontSize = IDE.fontSize;
+      IDE.lineHeight = parseInt(document.getElementById("lineHeightRange").value);
+      IDE.editorTextColor = document.getElementById("editorTextColor").value;
+      localStorage.setItem("ide_theme", IDE.theme);
+      localStorage.setItem("ide_sidebarPosition", IDE.sidebarPosition);
+      localStorage.setItem("ide_fontSize", IDE.fontSize);
+      localStorage.setItem("ide_wordWrap", IDE.wordWrap);
+      localStorage.setItem("ide_minimap", IDE.minimap);
+      localStorage.setItem("ide_editorFont", IDE.editorFontFamily);
+      localStorage.setItem("ide_editorFontSize", IDE.editorFontSize);
+      localStorage.setItem("ide_lineHeight", IDE.lineHeight);
+      localStorage.setItem("ide_textColor", IDE.editorTextColor);
+      localStorage.setItem("ide_apiKey", IDE.apiKeys.openrouter);
+      localStorage.setItem("ide_apikey_openai", IDE.apiKeys.openai);
+      localStorage.setItem("ide_apikey_claude", IDE.apiKeys.claude);
+      localStorage.setItem("ide_apikey_gemini", IDE.apiKeys.gemini);
+      localStorage.setItem("ide_apikey_deepseek", IDE.apiKeys.deepseek);
+      document.body.classList.toggle("light", IDE.theme === "light");
+      applySidebarPosition();
+      if (IDE.editor) IDE.editor.updateOptions({ theme: IDE.theme === "dark" ? "superDark" : "superLight", fontFamily: IDE.editorFontFamily, fontSize: IDE.editorFontSize, lineHeight: IDE.lineHeight });
+      updateTerminalTheme();
+      document.getElementById("settingsModal").classList.remove("open");
+      notify("Settings saved", "ok");
+    };
+    document.getElementById("cancelSettingsBtn").onclick = () => document.getElementById("settingsModal").classList.remove("open");
+    document.getElementById("closeDownloadBtn").onclick = () => document.getElementById("downloadModal").classList.remove("open");
+    document.getElementById("closeRevenueBtn").onclick = () => document.getElementById("revenueModal").classList.remove("open");
+    document.getElementById("revenueBtn").onclick = () => document.getElementById("revenueModal").classList.add("open");
+    document.getElementById("confirmRenameBtn").onclick = function () {
+      if (!_renameTarget) return;
+      var newName = document.getElementById("renameInput").value.trim();
+      if (!newName) return;
+      var dir = _renameTarget.includes("/") ? _renameTarget.substring(0, _renameTarget.lastIndexOf("/") + 1) : "";
+      var newPath = dir + newName;
+      IDE.fs.rename(_renameTarget, newPath).then(function () {
+        var idx = IDE.tabs.indexOf(_renameTarget);
+        if (idx !== -1) IDE.tabs[idx] = newPath;
+        if (IDE.dirtyTabs.has(_renameTarget)) { IDE.dirtyTabs.delete(_renameTarget); IDE.dirtyTabs.add(newPath); }
+        if (IDE.activeFile === _renameTarget) IDE.activeFile = newPath;
+        renderFileTree(); renderTabs();
+        document.getElementById("renameModal").classList.remove("open");
+      });
+    };
+    document.getElementById("cancelRenameBtn").onclick = () => document.getElementById("renameModal").classList.remove("open");
+    document.getElementById("searchInput").addEventListener("input", function () {
+      var q = this.value.trim().toLowerCase();
+      if (!q) { document.getElementById("searchResults").innerHTML = ""; return; }
+      IDE.fs.list().then(files => {
+        var proms = files.map(f => IDE.fs.get(f).then(c => ({ path: f, content: c })));
+        Promise.all(proms).then(results => {
+          var html = "";
+          results.forEach(r => {
+            var lines = r.content.split("\n");
+            var matches = [];
+            lines.forEach((line, i) => { if (line.toLowerCase().includes(q)) matches.push({ line: i+1, text: line.trim() }); });
+            if (matches.length) {
+              html += '<div class="search-result-file">' + r.path + ' (' + matches.length + ')</div>';
+              matches.slice(0,5).forEach(m => { html += '<div class="search-result-item" onclick="IDE.openFile(\'' + r.path + '\')"><small>' + m.line + ':</small> ' + m.text.replace(new RegExp("("+q+")","gi"),'<mark>$1</mark>') + "</div>"; });
+            }
+          });
+          document.getElementById("searchResults").innerHTML = html || '<div style="padding:8px;color:var(--text3)">No matches</div>';
+        });
+      });
+    });
+    document.getElementById("themeSelect").value = IDE.theme;
+    document.getElementById("sidebarPositionSelect").value = IDE.sidebarPosition;
+    document.getElementById("fontSizeRange").value = IDE.editorFontSize;
+    document.getElementById("fontSizeVal").textContent = IDE.editorFontSize;
+    document.getElementById("wordWrapChk").checked = IDE.wordWrap;
+    document.getElementById("minimapChk").checked = IDE.minimap;
+    document.getElementById("editorFontFamily").value = IDE.editorFontFamily;
+    document.getElementById("lineHeightRange").value = IDE.lineHeight;
+    document.getElementById("lineHeightVal").textContent = IDE.lineHeight;
+    document.getElementById("editorTextColor").value = IDE.editorTextColor;
+    document.getElementById("apiKeyInput").value = IDE.apiKeys.openrouter;
+    document.getElementById("openaiKeyInput").value = IDE.apiKeys.openai;
+    document.getElementById("claudeKeyInput").value = IDE.apiKeys.claude;
+    document.getElementById("geminiKeyInput").value = IDE.apiKeys.gemini;
+    document.getElementById("deepseekKeyInput").value = IDE.apiKeys.deepseek;
+    document.getElementById("fontSizeRange").oninput = function () { document.getElementById("fontSizeVal").textContent = this.value; };
+    document.getElementById("lineHeightRange").oninput = function () { document.getElementById("lineHeightVal").textContent = this.value; };
+  }
+
+  // Keyboard shortcuts
+  document.addEventListener("keydown", function (e) {
+    var inMonaco = e.target.closest && e.target.closest('.monaco-editor');
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "P" || e.key === "p")) { e.preventDefault(); openCmdPalette(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key === "k") { e.preventDefault(); openCmdPalette(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key === ",") { e.preventDefault(); document.getElementById('settingsModal').classList.add('open'); return; }
+    if ((e.ctrlKey || e.metaKey) && (e.key === "n" || e.key === "N")) { e.preventDefault(); IDE.newFile(); return; }
+    // Ctrl+S — save from anywhere
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "s" || e.key === "S")) {
+      e.preventDefault(); saveCurrentFile(); return;
+    }
+    // Ctrl+Z — undo (let Monaco handle it natively when focused, fallback otherwise)
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "z" || e.key === "Z")) {
+      if (!inMonaco) { e.preventDefault(); IDE.undo(); } return;
+    }
+    // Ctrl+Y or Ctrl+Shift+Z — redo
+    if ((e.ctrlKey || e.metaKey) && (e.key === "y" || e.key === "Y")) {
+      if (!inMonaco) { e.preventDefault(); IDE.redo(); } return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "z" || e.key === "Z")) {
+      if (!inMonaco) { e.preventDefault(); IDE.redo(); } return;
+    }
+    if (e.key === "Escape") {
+      document.querySelectorAll(".modal-overlay.open").forEach(function (m) { m.classList.remove("open"); });
+      document.getElementById("ctxMenu").style.display = "none";
+    }
+  });
+  document.getElementById("cmdInput").addEventListener("input", function () { filterCmds(this.value); });
+  document.getElementById("cmdInput").addEventListener("keydown", function (e) {
+    if (e.key === "Escape") document.getElementById("cmdModal").classList.remove("open");
+    if (e.key === "Enter") {
+      var first = document.querySelector("#cmdList .cmd-item");
+      if (first) first.click();
+    }
+  });
+  document.querySelectorAll(".modal-overlay").forEach(function (m) {
+    m.addEventListener("click", function (e) { if (e.target === m) m.classList.remove("open"); });
+  });
+
+  window.addEventListener("resize", function () {
+    if (IDE.fitAddon && IDE.panelVisible) IDE.fitAddon.fit();
+    if (IDE.editor) IDE.editor.layout();
+  });
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>
