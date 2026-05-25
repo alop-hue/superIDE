@@ -174,6 +174,7 @@ IDE.togglePanel=function(){IDE.panelVisible=!IDE.panelVisible;document.getElemen
 IDE.showWelcome=function(){document.getElementById("welcomeScreen").style.display="flex";document.getElementById("monacoContainer").style.display="none";};
 
 var COMMANDS=[{icon:"fa-file-circle-plus",label:"New File",kbd:"Ctrl+N",section:"File",action:function(){IDE.newFile();}},{icon:"fa-floppy-disk",label:"Save",kbd:"Ctrl+S",section:"File",action:function(){IDE.saveFile();}},{icon:"fa-download",label:"Export ZIP",section:"File",action:function(){IDE.exportZip();}},{icon:"fa-folder-open",label:"Import ZIP",section:"File",action:function(){IDE.importZip();}},{icon:"fa-circle-half-stroke",label:"Toggle Theme",section:"View",action:function(){IDE.toggleTheme();}},{icon:"fa-map",label:"Toggle Minimap",section:"View",action:function(){IDE.toggleMinimap();}},{icon:"fa-text-width",label:"Toggle Word Wrap",kbd:"Alt+Z",section:"View",action:function(){IDE.toggleWordWrap();}},{icon:"fa-terminal",label:"Toggle Terminal Panel",section:"View",action:function(){IDE.togglePanel();}},{icon:"fa-play",label:"Start Debugging",kbd:"F5",section:"Debug",action:function(){startDebugging();}},{icon:"fa-stop",label:"Stop Debugging",kbd:"Shift+F5",section:"Debug",action:function(){stopDebugging();}},{icon:"fa-bug",label:"Add Breakpoint",kbd:"F9",section:"Debug",action:function(){addBreakpoint();}},{icon:"fa-gear",label:"Open Settings",kbd:"Ctrl+,",section:"Settings",action:function(){document.getElementById('settingsModal').classList.add('open');}},{icon:"fa-eraser",label:"Clear Chat History",section:"AI",action:function(){document.getElementById('chatMessages').innerHTML='';}},{icon:"fa-eye",label:"AI: Review Current File",section:"AI",action:function(){if(!IDE.activeFile)return notify("No file open");sendChat("Review this file:\n```\n"+IDE.editor.getValue()+"\n```");}},{icon:"fa-lightbulb",label:"AI: Explain Selected Code",section:"AI",action:function(){var sel=IDE.editor?IDE.editor.getModel().getValueInRange(IDE.editor.getSelection()):"";if(!sel.trim())return notify("Select code first");sendChat("Explain:\n```\n"+sel+"\n```");}},{icon:"fa-code-branch",label:"Source Control: Commit All",section:"SCM",action:function(){commitAll();}},{icon:"fa-undo",label:"Source Control: Revert All",section:"SCM",action:function(){revertAll();}}];
+
 function init() {
   applyTheme(IDE.theme);
   applySidebarPosition();
@@ -232,7 +233,6 @@ function init() {
     }
   });
 
-  // The crucial part – properly closed chaining
   IDE.fs.ready
     .then(function () {
       return IDE.fs.list();
@@ -268,7 +268,7 @@ function init() {
         document.getElementById('mainSidebar'),
         IDE.sidebarPosition === 'right',
         '--sidebar-w',
-        false          // invert = false (default)
+        false
       );
 
       initResize(
@@ -335,26 +335,270 @@ function initResize(handle, panel, isRight, cssVar, invert) {
     window.addEventListener('mouseup', onUp);
   });
 }
-    // Fixed: Added missing 5th parameter (invert=false) to first initResize call
-    initResize(document.getElementById("sidebarResizeH"),document.getElementById("mainSidebar"),IDE.sidebarPosition==='right','--sidebar-w',false);
-    initResize(document.getElementById("chatResizeH"),document.getElementById("chatPanel"),false,'--chat-w',true);
-    bindUI();
-    setStatus("SUPER IDE ready");
-    logOutput("SUPER IDE initialized","ok");
-    fetchOpenRouterModels();
-    renderSCM();
-    renderBreakpoints();
-    renderWatchExpressions();
-  }).catch(function(err){
-    console.error("Init error:",err);
-    notify("Failed to initialize: "+err.message,"err");
+
+function openCmdPalette(){
+  document.getElementById("cmdModal").classList.add("open");
+  document.getElementById("cmdInput").value="";
+  filterCmds("");
+  document.getElementById("cmdInput").focus();
+}
+
+function filterCmds(query){
+  var q=query.toLowerCase();
+  var filtered=q?COMMANDS.filter(function(c){return c.label.toLowerCase().includes(q);}):COMMANDS;
+  var html="";
+  var lastSection="";
+  filtered.forEach(function(c){
+    if(c.section!==lastSection){
+      html+='<div class="cmd-section">'+c.section+"</div>";
+      lastSection=c.section;
+    }
+    html+='<div class="cmd-item" data-idx="'+COMMANDS.indexOf(c)+'">';
+    html+='<i class="fas '+c.icon+' cmd-icon2"></i>';
+    html+='<span>'+c.label+"</span>";
+    if(c.kbd)html+='<span class="cmd-kbd">'+c.kbd+"</span>";
+    html+="</div>";
+  });
+  document.getElementById("cmdList").innerHTML=html||'<div style="padding:12px 16px;color:var(--text3)">No commands found</div>';
+  document.querySelectorAll("#cmdList .cmd-item").forEach(function(el){
+    el.onclick=function(){
+      var idx=parseInt(el.getAttribute("data-idx"));
+      document.getElementById("cmdModal").classList.remove("open");
+      COMMANDS[idx].action();
+    };
   });
 }
-function openCmdPalette(){document.getElementById("cmdModal").classList.add("open");document.getElementById("cmdInput").value="";filterCmds("");document.getElementById("cmdInput").focus();}
-function filterCmds(query){var q=query.toLowerCase();var filtered=q?COMMANDS.filter(function(c){return c.label.toLowerCase().includes(q);}):COMMANDS;var html="";var lastSection="";filtered.forEach(function(c){if(c.section!==lastSection){html+='<div class="cmd-section">'+c.section+"</div>";lastSection=c.section;}html+='<div class="cmd-item" data-idx="'+COMMANDS.indexOf(c)+'">';html+='<i class="fas '+c.icon+' cmd-icon2"></i>';html+='<span>'+c.label+"</span>";if(c.kbd)html+='<span class="cmd-kbd">'+c.kbd+"</span>";html+="</div>";});document.getElementById("cmdList").innerHTML=html||'<div style="padding:12px 16px;color:var(--text3)">No commands found</div>';document.querySelectorAll("#cmdList .cmd-item").forEach(function(el){el.onclick=function(){var idx=parseInt(el.getAttribute("data-idx"));document.getElementById("cmdModal").classList.remove("open");COMMANDS[idx].action();};});}
-function initResize(handle,panel,isRight,cssVar,invert){var startX,startW;handle.addEventListener("mousedown",function(e){e.preventDefault();startX=e.clientX;startW=panel.offsetWidth;handle.classList.add("dragging");document.body.style.cursor="ew-resize";function onMove(e){var dx=e.clientX-startX;var newW;if(invert){if(isRight){newW=Math.max(180,Math.min(520,startW+dx));}else{newW=Math.max(180,Math.min(520,startW-dx));}}else{if(isRight){newW=Math.max(180,Math.min(520,startW-dx));}else{newW=Math.max(180,Math.min(520,startW+dx));}}panel.style.width=newW+"px";document.documentElement.style.setProperty(cssVar,newW+"px");if(IDE.editor)IDE.editor.layout();if(IDE.fitAddon&&IDE.panelVisible)IDE.fitAddon.fit();}function onUp(){document.body.style.cursor="";handle.classList.remove("dragging");window.removeEventListener("mousemove",onMove);window.removeEventListener("mouseup",onUp);}window.addEventListener("mousemove",onMove);window.addEventListener("mouseup",onUp);});}
-async function fetchOpenRouterModels(){var key=IDE.apiKeys.openrouter||IDE.apiKey;if(!key)return;try{var res=await fetch("https://openrouter.ai/api/v1/models",{headers:{Authorization:"Bearer "+key}});if(!res.ok)return;var data=await res.json();var select=document.getElementById("modelSelect");select.innerHTML="";data.data.forEach(function(m){var opt=document.createElement("option");opt.value=m.id;opt.textContent=m.name+" ("+m.id+")";select.appendChild(opt);});select.value=IDE.model;}catch(e){}}
-function switchSidebar(view){['explorer','search','scm','debug','extensions'].forEach(function(v){document.getElementById(v+'Section').style.display='none';});document.getElementById(view+'Section').style.display='flex';document.querySelectorAll('.act-btn[data-view]').forEach(function(b){b.classList.remove('active');});var btn=document.querySelector('.act-btn[data-view="'+view+'"]');if(btn)btn.classList.add('active');if(view==='extensions')renderExtensionsUI();if(view==='scm')renderSCM();if(view==='debug'){renderDebugVariables();renderCallStack();renderBreakpoints();renderWatchExpressions();}}
-function bindUI(){document.querySelectorAll('.act-btn[data-view]').forEach(function(btn){btn.addEventListener('click',function(){switchSidebar(this.getAttribute('data-view'));});});document.getElementById('actSettings').onclick=function(){document.getElementById('settingsModal').classList.add('open');};document.getElementById('actTheme').onclick=IDE.toggleTheme;document.getElementById('actDebug').onclick=function(){switchSidebar('debug');};document.getElementById('newFileBtn').onclick=IDE.newFile;document.getElementById('newFolderBtn').onclick=IDE.newFolder;document.getElementById('collapseAllBtn').onclick=function(){IDE.fileTreeState.forEach(function(v,k){IDE.fileTreeState.set(k,false);});renderFileTree();};document.getElementById('wNewFile').onclick=IDE.newFile;document.getElementById('wImport').onclick=IDE.importZip;document.getElementById('exportZipBtn').onclick=IDE.exportZip;document.querySelectorAll(".panel-tab[data-panel]").forEach(function(tab){tab.addEventListener('click',function(){document.querySelectorAll(".panel-tab").forEach(function(t){t.classList.remove("active");});document.querySelectorAll(".panel-section").forEach(function(s){s.classList.remove("active");});this.classList.add("active");var sec=document.getElementById(this.getAttribute("data-panel")+"Section");if(sec)sec.classList.add("active");if(this.dataset.panel==="terminal"&&IDE.fitAddon)setTimeout(function(){IDE.fitAddon.fit();},30);if(this.dataset.panel==="preview")refreshPreview();});});document.getElementById('togglePanelBtn').onclick=IDE.togglePanel;document.getElementById('clearPanelBtn').onclick=function(){if(IDE.terminal)IDE.terminal.clear();document.getElementById("outputLog").innerHTML="";document.getElementById("debugConsoleLog").innerHTML="";};document.getElementById('openPreviewExternalBtn').onclick=openPreviewExternal;document.getElementById('refreshSCMBtn').onclick=renderSCM;document.getElementById('commitAllBtn').onclick=commitAll;document.getElementById('revertAllBtn').onclick=revertAll;document.getElementById('installExtBtnSidebar').onclick=IDE.installExtensionPrompt;document.getElementById('refreshExtensionsBtn').onclick=renderExtensionsUI;document.getElementById('demoExtBtn').onclick=installDemoExtension;document.getElementById('startDebugBtn').onclick=startDebugging;document.getElementById('stopDebugBtn').onclick=stopDebugging;document.getElementById('startDebugStatus').onclick=startDebugging;document.getElementById('addWatchBtn').onclick=addWatchExpression;document.getElementById('watchExpressionInput').addEventListener('keydown',function(e){if(e.key==='Enter')addWatchExpression();});document.getElementById('sendBtn').onclick=function(){var inp=document.getElementById("chatInput");sendChat(inp.value);inp.value="";};document.getElementById("chatInput").addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();document.getElementById("sendBtn").click();}});document.getElementById("includeFileBtn").onclick=function(){IDE.includeFile=!IDE.includeFile;this.classList.toggle("active",IDE.includeFile);};document.getElementById("reviewBtn").onclick=function(){if(!IDE.activeFile)return notify("No file open");sendChat("Review this file:\n```\n"+IDE.editor.getValue()+"\n```");};document.getElementById("explainBtn").onclick=function(){var sel=IDE.editor?IDE.editor.getModel().getValueInRange(IDE.editor.getSelection()):"";if(!sel.trim())return notify("Select code first");sendChat("Explain:\n```\n"+sel+"\n```");};document.getElementById("clearChatBtn").onclick=function(){document.getElementById("chatMessages").innerHTML='';};document.getElementById("saveSettingsBtn").onclick=function(){IDE.apiKeys.openrouter=document.getElementById("apiKeyInput").value.trim();IDE.apiKeys.openai=document.getElementById("openaiKeyInput").value.trim();IDE.apiKeys.claude=document.getElementById("claudeKeyInput").value.trim();IDE.apiKeys.gemini=document.getElementById("geminiKeyInput").value.trim();IDE.apiKeys.deepseek=document.getElementById("deepseekKeyInput").value.trim();IDE.theme=document.getElementById("themeSelect").value;IDE.sidebarPosition=document.getElementById("sidebarPositionSelect").value;IDE.fontSize=parseInt(document.getElementById("fontSizeRange").value);IDE.wordWrap=document.getElementById("wordWrapChk").checked;IDE.minimap=document.getElementById("minimapChk").checked;IDE.editorFontFamily=document.getElementById("editorFontFamily").value;IDE.lineHeight=parseInt(document.getElementById("lineHeightRange").value);localStorage.setItem("ide_apiKey",IDE.apiKeys.openrouter);localStorage.setItem("ide_apikey_openai",IDE.apiKeys.openai);localStorage.setItem("ide_apikey_claude",IDE.apiKeys.claude);localStorage.setItem("ide_apikey_gemini",IDE.apiKeys.gemini);localStorage.setItem("ide_apikey_deepseek",IDE.apiKeys.deepseek);localStorage.setItem("ide_theme",IDE.theme);localStorage.setItem("ide_sidebarPosition",IDE.sidebarPosition);localStorage.setItem("ide_fontSize",IDE.fontSize);localStorage.setItem("ide_wordWrap",IDE.wordWrap);localStorage.setItem("ide_minimap",IDE.minimap);localStorage.setItem("ide_editorFont",IDE.editorFontFamily);localStorage.setItem("ide_lineHeight",IDE.lineHeight);applyTheme(IDE.theme);applySidebarPosition();if(IDE.editor){IDE.editor.updateOptions({fontSize:IDE.fontSize,fontFamily:IDE.editorFontFamily,lineHeight:IDE.lineHeight,wordWrap:IDE.wordWrap?"on":"off",minimap:{enabled:IDE.minimap},theme:getMonacoTheme(IDE.theme)});}document.getElementById("settingsModal").classList.remove("open");notify("Settings saved","ok");};document.getElementById("cancelSettingsBtn").onclick=function(){document.getElementById("settingsModal").classList.remove("open");};document.getElementById("closeDownloadBtn").onclick=function(){document.getElementById("downloadModal").classList.remove("open");};document.getElementById("closeRevenueBtn").onclick=function(){document.getElementById("revenueModal").classList.remove("open");};document.getElementById("revenueBtn").onclick=function(){document.getElementById("revenueModal").classList.add("open");};document.getElementById("confirmRenameBtn").onclick=function(){var newName=document.getElementById("renameInput").value.trim();if(newName&&_renameTarget){var dir=_renameTarget.split("/").slice(0,-1).join("/");var newPath=dir?dir+"/"+newName:newName;IDE.fs.rename(_renameTarget,newPath).then(function(){IDE.tabs=IDE.tabs.map(function(t){return t===_renameTarget?newPath:t;});if(IDE.activeFile===_renameTarget)IDE.activeFile=newPath;renderTabs();renderFileTree();notify("Renamed","ok");});}document.getElementById("renameModal").classList.remove("open");};document.getElementById("cancelRenameBtn").onclick=function(){document.getElementById("renameModal").classList.remove("open");};document.getElementById("cmdInput").addEventListener("input",function(){filterCmds(this.value);});document.getElementById("cmdInput").addEventListener("keydown",function(e){if(e.key==="Enter"){var selected=document.querySelector("#cmdList .cmd-item.selected");if(selected)selected.click();}else if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();var items=Array.from(document.querySelectorAll("#cmdList .cmd-item"));var current=items.findIndex(function(el){return el.classList.contains("selected");});if(current===-1)current=e.key==="ArrowDown"?-1:0;var next=e.key==="ArrowDown"?current+1:current-1;if(next<0)next=items.length-1;if(next>=items.length)next=0;items.forEach(function(el){el.classList.remove("selected");});if(items[next]){items[next].classList.add("selected");items[next].scrollIntoView({block:"nearest"});}}});document.addEventListener("keydown",function(e){if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==="p"){e.preventDefault();openCmdPalette();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="n"){e.preventDefault();IDE.newFile();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();saveCurrentFile();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()===","){e.preventDefault();document.getElementById('settingsModal').classList.add('open');}if(e.key==="F5"&&!document.querySelector('.modal-overlay.open')){e.preventDefault();if(IDE.debugSession)stopDebugging();else startDebugging();}if(e.key==="F9"&&!document.querySelector('.modal-overlay.open')){e.preventDefault();addBreakpoint();}});document.getElementById("fontSizeRange").addEventListener("input",function(){document.getElementById("fontSizeVal").textContent=this.value;});document.getElementById("lineHeightRange").addEventListener("input",function(){document.getElementById("lineHeightVal").textContent=this.value;});document.getElementById("themeSelect").value=IDE.theme;document.getElementById("sidebarPositionSelect").value=IDE.sidebarPosition;document.getElementById("fontSizeRange").value=IDE.fontSize;document.getElementById("fontSizeVal").textContent=IDE.fontSize;document.getElementById("wordWrapChk").checked=IDE.wordWrap;document.getElementById("minimapChk").checked=IDE.minimap;document.getElementById("editorFontFamily").value=IDE.editorFontFamily;document.getElementById("lineHeightRange").value=IDE.lineHeight;document.getElementById("lineHeightVal").textContent=IDE.lineHeight;document.getElementById("apiKeyInput").value=IDE.apiKeys.openrouter;document.getElementById("openaiKeyInput").value=IDE.apiKeys.openai;document.getElementById("claudeKeyInput").value=IDE.apiKeys.claude;document.getElementById("geminiKeyInput").value=IDE.apiKeys.gemini;document.getElementById("deepseekKeyInput").value=IDE.apiKeys.deepseek;}
+
+async function fetchOpenRouterModels(){
+  var key=IDE.apiKeys.openrouter||IDE.apiKey;
+  if(!key)return;
+  try{
+    var res=await fetch("https://openrouter.ai/api/v1/models",{headers:{Authorization:"Bearer "+key}});
+    if(!res.ok)return;
+    var data=await res.json();
+    var select=document.getElementById("modelSelect");
+    select.innerHTML="";
+    data.data.forEach(function(m){
+      var opt=document.createElement("option");
+      opt.value=m.id;
+      opt.textContent=m.name+" ("+m.id+")";
+      select.appendChild(opt);
+    });
+    select.value=IDE.model;
+  }catch(e){}
+}
+
+function switchSidebar(view){
+  ['explorer','search','scm','debug','extensions'].forEach(function(v){
+    document.getElementById(v+'Section').style.display='none';
+  });
+  document.getElementById(view+'Section').style.display='flex';
+  document.querySelectorAll('.act-btn[data-view]').forEach(function(b){b.classList.remove('active');});
+  var btn=document.querySelector('.act-btn[data-view="'+view+'"]');
+  if(btn)btn.classList.add('active');
+  if(view==='extensions')renderExtensionsUI();
+  if(view==='scm')renderSCM();
+  if(view==='debug'){
+    renderDebugVariables();
+    renderCallStack();
+    renderBreakpoints();
+    renderWatchExpressions();
+  }
+}
+
+function bindUI(){
+  document.querySelectorAll('.act-btn[data-view]').forEach(function(btn){
+    btn.addEventListener('click',function(){switchSidebar(this.getAttribute('data-view'));});
+  });
+  document.getElementById('actSettings').onclick=function(){document.getElementById('settingsModal').classList.add('open');};
+  document.getElementById('actTheme').onclick=IDE.toggleTheme;
+  document.getElementById('actDebug').onclick=function(){switchSidebar('debug');};
+  document.getElementById('newFileBtn').onclick=IDE.newFile;
+  document.getElementById('newFolderBtn').onclick=IDE.newFolder;
+  document.getElementById('collapseAllBtn').onclick=function(){
+    IDE.fileTreeState.forEach(function(v,k){IDE.fileTreeState.set(k,false);});
+    renderFileTree();
+  };
+  document.getElementById('wNewFile').onclick=IDE.newFile;
+  document.getElementById('wImport').onclick=IDE.importZip;
+  document.getElementById('exportZipBtn').onclick=IDE.exportZip;
+  document.querySelectorAll(".panel-tab[data-panel]").forEach(function(tab){
+    tab.addEventListener('click',function(){
+      document.querySelectorAll(".panel-tab").forEach(function(t){t.classList.remove("active");});
+      document.querySelectorAll(".panel-section").forEach(function(s){s.classList.remove("active");});
+      this.classList.add("active");
+      var sec=document.getElementById(this.getAttribute("data-panel")+"Section");
+      if(sec)sec.classList.add("active");
+      if(this.dataset.panel==="terminal"&&IDE.fitAddon)setTimeout(function(){IDE.fitAddon.fit();},30);
+      if(this.dataset.panel==="preview")refreshPreview();
+    });
+  });
+  document.getElementById('togglePanelBtn').onclick=IDE.togglePanel;
+  document.getElementById('clearPanelBtn').onclick=function(){
+    if(IDE.terminal)IDE.terminal.clear();
+    document.getElementById("outputLog").innerHTML="";
+    document.getElementById("debugConsoleLog").innerHTML="";
+  };
+  document.getElementById('openPreviewExternalBtn').onclick=openPreviewExternal;
+  document.getElementById('refreshSCMBtn').onclick=renderSCM;
+  document.getElementById('commitAllBtn').onclick=commitAll;
+  document.getElementById('revertAllBtn').onclick=revertAll;
+  document.getElementById('installExtBtnSidebar').onclick=IDE.installExtensionPrompt;
+  document.getElementById('refreshExtensionsBtn').onclick=renderExtensionsUI;
+  document.getElementById('demoExtBtn').onclick=installDemoExtension;
+  document.getElementById('startDebugBtn').onclick=startDebugging;
+  document.getElementById('stopDebugBtn').onclick=stopDebugging;
+  document.getElementById('startDebugStatus').onclick=startDebugging;
+  document.getElementById('addWatchBtn').onclick=addWatchExpression;
+  document.getElementById('watchExpressionInput').addEventListener('keydown',function(e){if(e.key==='Enter')addWatchExpression();});
+  document.getElementById('sendBtn').onclick=function(){
+    var inp=document.getElementById("chatInput");
+    sendChat(inp.value);
+    inp.value="";
+  };
+  document.getElementById("chatInput").addEventListener("keydown",function(e){
+    if(e.key==="Enter"&&!e.shiftKey){
+      e.preventDefault();
+      document.getElementById("sendBtn").click();
+    }
+  });
+  document.getElementById("includeFileBtn").onclick=function(){
+    IDE.includeFile=!IDE.includeFile;
+    this.classList.toggle("active",IDE.includeFile);
+  };
+  document.getElementById("reviewBtn").onclick=function(){
+    if(!IDE.activeFile)return notify("No file open");
+    sendChat("Review this file:\n```\n"+IDE.editor.getValue()+"\n```");
+  };
+  document.getElementById("explainBtn").onclick=function(){
+    var sel=IDE.editor?IDE.editor.getModel().getValueInRange(IDE.editor.getSelection()):"";
+    if(!sel.trim())return notify("Select code first");
+    sendChat("Explain:\n```\n"+sel+"\n```");
+  };
+  document.getElementById("clearChatBtn").onclick=function(){document.getElementById("chatMessages").innerHTML='';};
+  document.getElementById("saveSettingsBtn").onclick=function(){
+    IDE.apiKeys.openrouter=document.getElementById("apiKeyInput").value.trim();
+    IDE.apiKeys.openai=document.getElementById("openaiKeyInput").value.trim();
+    IDE.apiKeys.claude=document.getElementById("claudeKeyInput").value.trim();
+    IDE.apiKeys.gemini=document.getElementById("geminiKeyInput").value.trim();
+    IDE.apiKeys.deepseek=document.getElementById("deepseekKeyInput").value.trim();
+    IDE.theme=document.getElementById("themeSelect").value;
+    IDE.sidebarPosition=document.getElementById("sidebarPositionSelect").value;
+    IDE.fontSize=parseInt(document.getElementById("fontSizeRange").value);
+    IDE.wordWrap=document.getElementById("wordWrapChk").checked;
+    IDE.minimap=document.getElementById("minimapChk").checked;
+    IDE.editorFontFamily=document.getElementById("editorFontFamily").value;
+    IDE.lineHeight=parseInt(document.getElementById("lineHeightRange").value);
+    localStorage.setItem("ide_apiKey",IDE.apiKeys.openrouter);
+    localStorage.setItem("ide_apikey_openai",IDE.apiKeys.openai);
+    localStorage.setItem("ide_apikey_claude",IDE.apiKeys.claude);
+    localStorage.setItem("ide_apikey_gemini",IDE.apiKeys.gemini);
+    localStorage.setItem("ide_apikey_deepseek",IDE.apiKeys.deepseek);
+    localStorage.setItem("ide_theme",IDE.theme);
+    localStorage.setItem("ide_sidebarPosition",IDE.sidebarPosition);
+    localStorage.setItem("ide_fontSize",IDE.fontSize);
+    localStorage.setItem("ide_wordWrap",IDE.wordWrap);
+    localStorage.setItem("ide_minimap",IDE.minimap);
+    localStorage.setItem("ide_editorFont",IDE.editorFontFamily);
+    localStorage.setItem("ide_lineHeight",IDE.lineHeight);
+    applyTheme(IDE.theme);
+    applySidebarPosition();
+    if(IDE.editor){
+      IDE.editor.updateOptions({
+        fontSize:IDE.fontSize,
+        fontFamily:IDE.editorFontFamily,
+        lineHeight:IDE.lineHeight,
+        wordWrap:IDE.wordWrap?"on":"off",
+        minimap:{enabled:IDE.minimap},
+        theme:getMonacoTheme(IDE.theme)
+      });
+    }
+    document.getElementById("settingsModal").classList.remove("open");
+    notify("Settings saved","ok");
+  };
+  document.getElementById("cancelSettingsBtn").onclick=function(){document.getElementById("settingsModal").classList.remove("open");};
+  document.getElementById("closeDownloadBtn").onclick=function(){document.getElementById("downloadModal").classList.remove("open");};
+  document.getElementById("closeRevenueBtn").onclick=function(){document.getElementById("revenueModal").classList.remove("open");};
+  document.getElementById("revenueBtn").onclick=function(){document.getElementById("revenueModal").classList.add("open");};
+  document.getElementById("confirmRenameBtn").onclick=function(){
+    var newName=document.getElementById("renameInput").value.trim();
+    if(newName&&_renameTarget){
+      var dir=_renameTarget.split("/").slice(0,-1).join("/");
+      var newPath=dir?dir+"/"+newName:newName;
+      IDE.fs.rename(_renameTarget,newPath).then(function(){
+        IDE.tabs=IDE.tabs.map(function(t){return t===_renameTarget?newPath:t;});
+        if(IDE.activeFile===_renameTarget)IDE.activeFile=newPath;
+        renderTabs();
+        renderFileTree();
+        notify("Renamed","ok");
+      });
+    }
+    document.getElementById("renameModal").classList.remove("open");
+  };
+  document.getElementById("cancelRenameBtn").onclick=function(){document.getElementById("renameModal").classList.remove("open");};
+  document.getElementById("cmdInput").addEventListener("input",function(){filterCmds(this.value);});
+  document.getElementById("cmdInput").addEventListener("keydown",function(e){
+    if(e.key==="Enter"){
+      var selected=document.querySelector("#cmdList .cmd-item.selected");
+      if(selected)selected.click();
+    }else if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+      e.preventDefault();
+      var items=Array.from(document.querySelectorAll("#cmdList .cmd-item"));
+      var current=items.findIndex(function(el){return el.classList.contains("selected");});
+      if(current===-1)current=e.key==="ArrowDown"?-1:0;
+      var next=e.key==="ArrowDown"?current+1:current-1;
+      if(next<0)next=items.length-1;
+      if(next>=items.length)next=0;
+      items.forEach(function(el){el.classList.remove("selected");});
+      if(items[next]){
+        items[next].classList.add("selected");
+        items[next].scrollIntoView({block:"nearest"});
+      }
+    }
+  });
+  document.addEventListener("keydown",function(e){
+    if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==="p"){
+      e.preventDefault();
+      openCmdPalette();
+    }
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="n"){
+      e.preventDefault();
+      IDE.newFile();
+    }
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){
+      e.preventDefault();
+      saveCurrentFile();
+    }
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()===","){
+      e.preventDefault();
+      document.getElementById('settingsModal').classList.add('open');
+    }
+    if(e.key==="F5"&&!document.querySelector('.modal-overlay.open')){
+      e.preventDefault();
+      if(IDE.debugSession)stopDebugging();
+      else startDebugging();
+    }
+    if(e.key==="F9"&&!document.querySelector('.modal-overlay.open')){
+      e.preventDefault();
+      addBreakpoint();
+    }
+  });
+  document.getElementById("fontSizeRange").addEventListener("input",function(){document.getElementById("fontSizeVal").textContent=this.value;});
+  document.getElementById("lineHeightRange").addEventListener("input",function(){document.getElementById("lineHeightVal").textContent=this.value;});
+  document.getElementById("themeSelect").value=IDE.theme;
+  document.getElementById("sidebarPositionSelect").value=IDE.sidebarPosition;
+  document.getElementById("fontSizeRange").value=IDE.fontSize;
+  document.getElementById("fontSizeVal").textContent=IDE.fontSize;
+  document.getElementById("wordWrapChk").checked=IDE.wordWrap;
+  document.getElementById("minimapChk").checked=IDE.minimap;
+  document.getElementById("editorFontFamily").value=IDE.editorFontFamily;
+  document.getElementById("lineHeightRange").value=IDE.lineHeight;
+  document.getElementById("lineHeightVal").textContent=IDE.lineHeight;
+  document.getElementById("apiKeyInput").value=IDE.apiKeys.openrouter;
+  document.getElementById("openaiKeyInput").value=IDE.apiKeys.openai;
+  document.getElementById("claudeKeyInput").value=IDE.apiKeys.claude;
+  document.getElementById("geminiKeyInput").value=IDE.apiKeys.gemini;
+  document.getElementById("deepseekKeyInput").value=IDE.apiKeys.deepseek;
+}
 
 init();
